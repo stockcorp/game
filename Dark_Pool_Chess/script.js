@@ -11,6 +11,7 @@ let redCaptured = [], blackCaptured = [];
 let difficulty = 'easy';
 const EASY_DEPTH = 3, HARD_DEPTH = 4;
 let firstMove = true;
+let aiMoving = false; // 防止 AI 重複行動
 
 function resizeCanvas() {
     const containerWidth = document.querySelector('.board-section').offsetWidth;
@@ -35,7 +36,6 @@ function initializeBoard() {
             board[y][x] = { piece: pieces[index++], revealed: false };
         }
     }
-    // 驗證將和帥存在
     console.log('初始化完成 - 紅方將:', board.flat().some(cell => cell && cell.piece === 'K'));
     console.log('初始化完成 - 黑方帥:', board.flat().some(cell => cell && cell.piece === 'k'));
     
@@ -49,6 +49,7 @@ function initializeBoard() {
     aiColor = null;
     firstMove = true;
     selectedPiece = null;
+    aiMoving = false;
     updateScoreboard();
     updateCapturedList();
     updateDifficultyDisplay();
@@ -175,7 +176,6 @@ function updateDifficultyDisplay() {
 }
 
 function checkGameOver() {
-    // 只在實際吃子後檢查，避免初始化或翻棋觸發
     if (firstMove) return false; // 防止第一步檢查
     const redKingExists = board.some(row => row.some(cell => cell && cell.piece === 'K'));
     const blackKingExists = board.some(row => row.some(cell => cell && cell.piece === 'k'));
@@ -355,7 +355,9 @@ function isAIPiece(piece) {
 }
 
 function aiMove() {
-    if (gameOver || !aiColor || currentPlayer !== aiColor) return;
+    if (gameOver || !aiColor || currentPlayer !== aiColor || aiMoving) return;
+    aiMoving = true; // 鎖定 AI 行動，防止重複觸發
+
     const validMoves = [];
     const depth = difficulty === 'easy' ? EASY_DEPTH : HARD_DEPTH;
 
@@ -379,6 +381,7 @@ function aiMove() {
     if (validMoves.length === 0) {
         console.log('AI 無合法移動，遊戲結束');
         gameOver = true;
+        aiMoving = false;
         return;
     }
 
@@ -425,6 +428,7 @@ function aiMove() {
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
             }
+            aiMoving = false; // 解鎖 AI 行動
         });
     } else {
         const piece = board[bestMove.fromY][bestMove.fromX].piece;
@@ -442,12 +446,13 @@ function aiMove() {
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
             }
+            aiMoving = false; // 解鎖 AI 行動
         });
     }
 }
 
 function handleMove(e) {
-    if (gameOver || (playerColor && currentPlayer !== playerColor)) return;
+    if (gameOver || (playerColor && currentPlayer !== playerColor) || aiMoving) return;
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor((e.clientX - rect.left) / cellWidth);
     const y = Math.floor((e.clientY - rect.top) / cellHeight);
@@ -466,7 +471,7 @@ function handleMove(e) {
                 currentPlayer = aiColor;
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
-                setTimeout(aiMove, 500);
+                setTimeout(aiMove, 500); // AI 一步行動
             });
         }
     } else if (selectedPiece) {
@@ -486,7 +491,7 @@ function handleMove(e) {
                     currentPlayer = aiColor;
                     document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                     drawBoard();
-                    setTimeout(aiMove, 500);
+                    setTimeout(aiMove, 500); // AI 一步行動
                 }
             });
         } else {
@@ -502,7 +507,7 @@ function handleMove(e) {
                 currentPlayer = aiColor;
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
-                setTimeout(aiMove, 500);
+                setTimeout(aiMove, 500); // AI 一步行動
             }
         });
     } else if (board[y][x].piece && isPlayerPiece(board[y][x].piece)) {
