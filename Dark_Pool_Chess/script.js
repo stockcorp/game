@@ -101,8 +101,13 @@ function drawBoard() {
 }
 
 function drawHidden(x, y) {
+    ctx.beginPath();
+    ctx.arc(x * cellWidth + cellWidth / 2, y * cellHeight + cellHeight / 2, cellWidth / 2 - 2, 0, Math.PI * 2);
     ctx.fillStyle = '#8b5a2b';
-    ctx.fillRect(x * cellWidth + 2, y * cellHeight + 2, cellWidth - 4, cellHeight - 4);
+    ctx.fill();
+    ctx.strokeStyle = '#4a2c00';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 }
 
 function drawPiece(x, y, piece) {
@@ -220,7 +225,7 @@ function isValidMoveForAI(fromX, fromY, toX, toY) {
     const dx = Math.abs(toX - fromX), dy = Math.abs(toY - fromY);
     if (dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return false;
 
-    const target = board[toX][toY] ? board[toX][toY].piece : null;
+    const target = board[toY][toX] ? board[toY][toX].piece : null;
     if (!target) return true;
     
     const isOpponentPiece = aiColor === 'red' ? /[kabnrps]/.test(target) : /[KABNRPS]/.test(target);
@@ -266,16 +271,16 @@ function minimax(depth, alpha, beta, maximizingPlayer) {
                         for (let tx = 0; tx < gridWidth; tx++) {
                             if (isValidMoveForAI(x, y, tx, ty)) {
                                 const originalPiece = board[y][x].piece;
-                                const targetPiece = board[ty][tx].piece;
+                                const targetPiece = board[tx][ty].piece;
                                 if (targetPiece) {
                                     if (aiColor === 'red') blackCaptured.push(targetPiece);
                                     else redCaptured.push(targetPiece);
                                 }
-                                board[ty][tx] = { piece: originalPiece, revealed: true };
+                                board[tx][ty] = { piece: originalPiece, revealed: true };
                                 board[y][x] = { piece: null, revealed: false };
                                 const evalScore = minimax(depth - 1, alpha, beta, false);
                                 board[y][x] = { piece: originalPiece, revealed: true };
-                                board[ty][tx] = targetPiece ? { piece: targetPiece, revealed: true } : { piece: null, revealed: false };
+                                board[tx][ty] = targetPiece ? { piece: targetPiece, revealed: true } : { piece: null, revealed: false };
                                 if (targetPiece) {
                                     if (aiColor === 'red') blackCaptured.pop();
                                     else redCaptured.pop();
@@ -307,16 +312,16 @@ function minimax(depth, alpha, beta, maximizingPlayer) {
                         for (let tx = 0; tx < gridWidth; tx++) {
                             if (isValidMove(x, y, tx, ty)) {
                                 const originalPiece = board[y][x].piece;
-                                const targetPiece = board[ty][tx].piece;
+                                const targetPiece = board[tx][ty].piece;
                                 if (targetPiece) {
                                     if (playerColor === 'red') blackCaptured.push(targetPiece);
                                     else redCaptured.push(targetPiece);
                                 }
-                                board[ty][tx] = { piece: originalPiece, revealed: true };
+                                board[tx][ty] = { piece: originalPiece, revealed: true };
                                 board[y][x] = { piece: null, revealed: false };
                                 const evalScore = minimax(depth - 1, alpha, beta, true);
                                 board[y][x] = { piece: originalPiece, revealed: true };
-                                board[ty][tx] = targetPiece ? { piece: targetPiece, revealed: true } : { piece: null, revealed: false };
+                                board[tx][ty] = targetPiece ? { piece: targetPiece, revealed: true } : { piece: null, revealed: false };
                                 if (targetPiece) {
                                     if (playerColor === 'red') blackCaptured.pop();
                                     else redCaptured.pop();
