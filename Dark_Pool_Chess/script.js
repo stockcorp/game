@@ -171,14 +171,15 @@ function updateDifficultyDisplay() {
 }
 
 function checkGameOver() {
-    const redKing = board.flat().some(cell => cell && cell.piece === 'K');
-    const blackKing = board.flat().some(cell => cell && cell.piece === 'k');
-    if (!redKing) {
+    const redKingExists = board.some(row => row.some(cell => cell && cell.piece === 'K'));
+    const blackKingExists = board.some(row => row.some(cell => cell && cell.piece === 'k'));
+    
+    if (!redKingExists && blackKingExists) {
         gameOver = true;
         alert('黑方勝！');
         return true;
     }
-    if (!blackKing) {
+    if (!blackKingExists && redKingExists) {
         gameOver = true;
         alert('紅方勝！');
         return true;
@@ -211,7 +212,7 @@ function isValidMove(fromX, fromY, toX, toY) {
 
     if (piece === 'P' || piece === 'p') {
         const midX = (fromX + toX) / 2, midY = (fromY + toY) / 2;
-        return dx === 1 && dy === 1 && board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
+        return dx === 1 && dy === 1 && board[midY] && board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
     }
     return canEat(piece, target);
 }
@@ -233,7 +234,7 @@ function isValidMoveForAI(fromX, fromY, toX, toY) {
 
     if (piece === 'P' || piece === 'p') {
         const midX = (fromX + toX) / 2, midY = (fromY + toY) / 2;
-        return dx === 1 && dy === 1 && board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
+        return dx === 1 && dy === 1 && board[midY] && board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
     }
     return canEat(piece, target);
 }
@@ -271,7 +272,7 @@ function minimax(depth, alpha, beta, maximizingPlayer) {
                         for (let tx = 0; tx < gridWidth; tx++) {
                             if (isValidMoveForAI(x, y, tx, ty)) {
                                 const originalPiece = board[y][x].piece;
-                                const targetPiece = board[tx][ty].piece;
+                                const targetPiece = board[tx][ty] ? board[tx][ty].piece : null;
                                 if (targetPiece) {
                                     if (aiColor === 'red') blackCaptured.push(targetPiece);
                                     else redCaptured.push(targetPiece);
@@ -312,7 +313,7 @@ function minimax(depth, alpha, beta, maximizingPlayer) {
                         for (let tx = 0; tx < gridWidth; tx++) {
                             if (isValidMove(x, y, tx, ty)) {
                                 const originalPiece = board[y][x].piece;
-                                const targetPiece = board[tx][ty].piece;
+                                const targetPiece = board[tx][ty] ? board[tx][ty].piece : null;
                                 if (targetPiece) {
                                     if (playerColor === 'red') blackCaptured.push(targetPiece);
                                     else redCaptured.push(targetPiece);
@@ -387,7 +388,7 @@ function aiMove() {
             }
         } else {
             const originalPiece = board[move.fromY][move.fromX].piece;
-            const targetPiece = board[move.toY][move.toX].piece;
+            const targetPiece = board[move.toY][move.toX] ? board[move.toY][move.toX].piece : null;
             if (targetPiece) {
                 if (aiColor === 'red') blackCaptured.push(targetPiece);
                 else redCaptured.push(targetPiece);
