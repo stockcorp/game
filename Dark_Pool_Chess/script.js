@@ -35,6 +35,10 @@ function initializeBoard() {
             board[y][x] = { piece: pieces[index++], revealed: false };
         }
     }
+    // 驗證將和帥存在
+    console.log('初始化完成 - 紅方將:', board.flat().some(cell => cell && cell.piece === 'K'));
+    console.log('初始化完成 - 黑方帥:', board.flat().some(cell => cell && cell.piece === 'k'));
+    
     redScore = 16;
     blackScore = 16;
     redCaptured = [];
@@ -171,6 +175,8 @@ function updateDifficultyDisplay() {
 }
 
 function checkGameOver() {
+    // 只在實際吃子後檢查，避免初始化或翻棋觸發
+    if (firstMove) return false; // 防止第一步檢查
     const redKingExists = board.some(row => row.some(cell => cell && cell.piece === 'K'));
     const blackKingExists = board.some(row => row.some(cell => cell && cell.piece === 'k'));
     
@@ -211,7 +217,7 @@ function isValidMove(fromX, fromY, toX, toY) {
     if (!isOpponentPiece) return false;
 
     if (piece === 'P' || piece === 'p') {
-        const midX = (fromX + toX) / 2, midY = (fromY + toY) / 2;
+        const midX = Math.floor((fromX + toX) / 2), midY = Math.floor((fromY + toY) / 2);
         return dx === 1 && dy === 1 && board[midY] && board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
     }
     return canEat(piece, target);
@@ -233,7 +239,7 @@ function isValidMoveForAI(fromX, fromY, toX, toY) {
     if (!isOpponentPiece) return false;
 
     if (piece === 'P' || piece === 'p') {
-        const midX = (fromX + toX) / 2, midY = (fromY + toY) / 2;
+        const midX = Math.floor((fromX + toX) / 2), midY = Math.floor((fromY + toY) / 2);
         return dx === 1 && dy === 1 && board[midY] && board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
     }
     return canEat(piece, target);
