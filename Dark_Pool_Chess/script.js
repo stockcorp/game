@@ -182,11 +182,13 @@ function checkGameOver() {
     
     if (!redKingExists && blackKingExists) {
         gameOver = true;
+        console.log('黑方勝！');
         alert('黑方勝！');
         return true;
     }
     if (!blackKingExists && redKingExists) {
         gameOver = true;
+        console.log('紅方勝！');
         alert('紅方勝！');
         return true;
     }
@@ -355,8 +357,12 @@ function isAIPiece(piece) {
 }
 
 function aiMove() {
-    if (gameOver || !aiColor || currentPlayer !== aiColor || aiMoving) return;
-    aiMoving = true; // 鎖定 AI 行動，防止重複觸發
+    if (gameOver || !aiColor || currentPlayer !== aiColor || aiMoving) {
+        console.log('AI 未行動 - gameOver:', gameOver, 'aiColor:', aiColor, 'currentPlayer:', currentPlayer, 'aiMoving:', aiMoving);
+        return;
+    }
+    aiMoving = true;
+    console.log('AI 開始行動');
 
     const validMoves = [];
     const depth = difficulty === 'easy' ? EASY_DEPTH : HARD_DEPTH;
@@ -428,7 +434,7 @@ function aiMove() {
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
             }
-            aiMoving = false; // 解鎖 AI 行動
+            aiMoving = false;
         });
     } else {
         const piece = board[bestMove.fromY][bestMove.fromX].piece;
@@ -446,7 +452,7 @@ function aiMove() {
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
             }
-            aiMoving = false; // 解鎖 AI 行動
+            aiMoving = false;
         });
     }
 }
@@ -471,7 +477,9 @@ function handleMove(e) {
                 currentPlayer = aiColor;
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
-                setTimeout(aiMove, 500); // AI 一步行動
+                setTimeout(() => {
+                    aiMove();
+                }, 500);
             });
         }
     } else if (selectedPiece) {
@@ -491,7 +499,9 @@ function handleMove(e) {
                     currentPlayer = aiColor;
                     document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                     drawBoard();
-                    setTimeout(aiMove, 500); // AI 一步行動
+                    setTimeout(() => {
+                        aiMove();
+                    }, 500);
                 }
             });
         } else {
@@ -507,7 +517,9 @@ function handleMove(e) {
                 currentPlayer = aiColor;
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
-                setTimeout(aiMove, 500); // AI 一步行動
+                setTimeout(() => {
+                    aiMove();
+                }, 500);
             }
         });
     } else if (board[y][x].piece && isPlayerPiece(board[y][x].piece)) {
