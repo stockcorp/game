@@ -89,6 +89,7 @@
             max-width: 720px;
             position: absolute;
             bottom: 20px;
+            z-index: 2;
         }
         #opponents {
             position: relative;
@@ -96,15 +97,18 @@
             height: 100%;
         }
         .opponent {
+            position: absolute;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
-            font-size: 18px;
         }
         .opponent-hand {
             display: flex;
-            gap: 5px;
+            justify-content: center;
+            position: relative;
+            width: 150px;
+            height: 60px;
         }
         .opponent-card {
             width: 36px;
@@ -112,36 +116,40 @@
             background-color: #ccc;
             border: 1px solid #333;
             border-radius: 5px;
+            position: absolute;
+            transform-origin: bottom center;
         }
         #ai1 {
-            position: absolute;
-            top: -140px;
+            top: -180px;
             left: 50%;
             transform: translateX(-50%);
         }
         #ai2 {
-            position: absolute;
-            left: -120px;
+            left: -150px;
             top: 50%;
             transform: translateY(-50%);
-        }
-        #ai2 .opponent-hand {
-            flex-direction: column;
         }
         #ai3 {
-            position: absolute;
-            right: -120px;
+            right: -150px;
             top: 50%;
             transform: translateY(-50%);
         }
-        #ai3 .opponent-hand {
-            flex-direction: column;
+        .player-label {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 18px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         #controls {
             display: flex;
             gap: 10px;
             position: absolute;
             bottom: 120px;
+            z-index: 2;
         }
         button {
             padding: 12px 24px;
@@ -151,38 +159,37 @@
             color: white;
             border: none;
             border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         button:hover {
             background-color: #45a049;
         }
-        #status {
-            font-size: 20px;
-            color: #333;
+        #info-panel {
             position: absolute;
-            top: 250px;
+            bottom: 20px;
+            left: 20px;
+            width: 300px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid #ddd;
+            z-index: 3;
         }
-        #scores {
+        #status, #scores, #timer {
             font-size: 18px;
             color: #333;
-            position: absolute;
-            top: 280px;
-        }
-        #timer {
-            font-size: 18px;
-            color: #333;
-            position: absolute;
-            top: 310px;
+            margin-bottom: 10px;
         }
         #history {
-            width: 300px;
+            width: 100%;
             height: 150px;
             overflow-y: auto;
             background-color: #fff;
-            border: 1px solid #333;
+            border: 1px solid #ccc;
             padding: 10px;
             font-size: 16px;
-            position: absolute;
-            top: 340px;
+            border-radius: 5px;
         }
     </style>
 </head>
@@ -190,31 +197,35 @@
     <div id="game-container">
         <div id="opponents">
             <div class="opponent" id="ai1">
-                <div>AI 1</div>
+                <div class="player-label">AI 1</div>
                 <div class="opponent-hand" id="ai1-hand"></div>
             </div>
             <div class="opponent" id="ai2">
-                <div>AI 2</div>
+                <div class="player-label">AI 2</div>
                 <div class="opponent-hand" id="ai2-hand"></div>
             </div>
             <div class="opponent" id="ai3">
-                <div>AI 3</div>
+                <div class="player-label">AI 3</div>
                 <div class="opponent-hand" id="ai3-hand"></div>
             </div>
         </div>
         <div id="table">
             <div id="table-cards"></div>
         </div>
-        <div id="status">等待開始...</div>
-        <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
-        <div id="timer">計時器: 30秒</div>
-        <div id="history"></div>
+        <div id="info-panel">
+            <div id="status">等待開始...</div>
+            <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
+            <div id="timer">計時器: 30秒</div>
+            <div id="history"></div>
+        </div>
         <div id="controls">
             <button onclick="playCards()">出牌</button>
             <button onclick="pass()">過牌</button>
-            <button onclick="resetGame()">重置遊戲</button>
+            <button onclick="resetGame()">重新洗牌</button>
         </div>
-        <div id="player-hand"></div>
+        <div id="player-hand">
+            <div class="player-label" style="position: absolute; top: -30px;">玩家</div>
+        </div>
     </div>
 
     <script>
@@ -292,7 +303,7 @@
             try {
                 // 玩家手牌
                 const playerHand = document.getElementById('player-hand');
-                playerHand.innerHTML = '';
+                playerHand.innerHTML = '<div class="player-label" style="position: absolute; top: -30px;">玩家</div>';
                 if (hands[0] && Array.isArray(hands[0])) {
                     hands[0].forEach((card, index) => {
                         const cardDiv = document.createElement('div');
@@ -307,16 +318,22 @@
                     });
                 }
 
-                // AI手牌
+                // AI手牌（傘型）
                 for (let i = 1; i <= 3; i++) {
                     const aiHand = document.getElementById(`ai${i}-hand`);
                     aiHand.innerHTML = '';
                     if (hands[i] && Array.isArray(hands[i])) {
-                        for (let j = 0; j < hands[i].length; j++) {
+                        const cardCount = hands[i].length;
+                        const maxAngle = 60; // 最大展開角度
+                        const angleStep = cardCount > 1 ? Math.min(maxAngle / (cardCount - 1), 10) : 0;
+                        hands[i].forEach((card, j) => {
                             const cardDiv = document.createElement('div');
                             cardDiv.classList.add('opponent-card');
+                            const angle = (j - (cardCount - 1) / 2) * angleStep;
+                            cardDiv.style.transform = `rotate(${angle}deg)`;
+                            cardDiv.style.left = `${j * 10}px`; // 輕微重疊
                             aiHand.appendChild(cardDiv);
-                        }
+                        });
                     }
                 }
 
@@ -361,7 +378,7 @@
                 timer--;
                 document.getElementById('timer').textContent = `計時器: ${timer}秒`;
                 if (timer <= 0) {
-                    pass(); // 時間到自動過牌
+                    pass();
                 }
             }, 1000);
         }
@@ -599,15 +616,12 @@
         // 獲取所有可能組合
         function getAllCombinations(hand) {
             let combos = [];
-            // 單張
             hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.rank], suit: suitOrder[card.suit], cards: [card] }));
-            // 一對
             for (let i = 0; i < hand.length - 1; i++) {
                 if (hand[i].rank === hand[i + 1].rank) {
                     combos.push({ type: 'pair', value: rankOrder[hand[i].rank], suit: Math.max(suitOrder[hand[i].suit], suitOrder[hand[i + 1].suit]), cards: [hand[i], hand[i + 1]] });
                 }
             }
-            // 五張組合
             if (hand.length >= 5) {
                 const fiveCombos = getFiveCardCombinations(hand);
                 combos.push(...fiveCombos);
@@ -707,9 +721,3 @@
             scores = [0, 0, 0, 0];
             initGame();
         }
-
-        // 初始化遊戲
-        initGame();
-    </script>
-</body>
-</html>
