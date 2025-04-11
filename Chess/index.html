@@ -32,7 +32,6 @@
         </header>
         <div class="game-section">
             <div class="ad-left">
-                <!-- Google AdSense 左側廣告 -->
                 <ins class="adsbygoogle" style="display:block" data-ad-client="你的 AdSense ID" data-ad-slot="你的廣告位 ID" data-ad-format="auto"></ins>
                 <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
             </div>
@@ -69,7 +68,6 @@
                 </div>
             </div>
             <div class="ad-right">
-                <!-- Google AdSense 右側廣告 -->
                 <ins class="adsbygoogle" style="display:block" data-ad-client="你的 AdSense ID" data-ad-slot="你的廣告位 ID" data-ad-format="auto"></ins>
                 <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
             </div>
@@ -84,14 +82,18 @@
             <p><strong>初始位置</strong></p>
             <p>白方在第 1-2 排，黑方在第 7-8 排，玩家控制白方，AI 控制黑方。</p>
             <p><strong>移動規則</strong></p>
-            <p>兵：前進 1 格（初始可 2 格），斜 1 格吃子。</p>
+            <p>兵：前進 1 格（初始可 2 格），斜 1 格吃子，吃過路兵，升變。</p>
             <p>車：水平或垂直任意格。</p>
             <p>馬：L 形移動（2x1 或 1x2）。</p>
             <p>象：對角線任意格。</p>
             <p>后：車與象的結合，任意方向任意格。</p>
-            <p>王：周圍 1 格。</p>
-            <p><strong>勝利條件</strong></p>
-            <p>吃掉對方王即勝。</p>
+            <p>王：周圍 1 格，王車易位。</p>
+            <p><strong>特殊規則</strong></p>
+            <p>王車易位：王與車未移動時可短邊 (O-O) 或長邊 (O-O-O) 移動。</p>
+            <p>吃過路兵：兵初始前進 2 格時可被對方兵吃。</p>
+            <p>兵升變：兵到達對方底線可升為后、車、象或馬。</p>
+            <p><strong>勝利與和局</strong></p>
+            <p>將死對方王即勝，和局條件包括僵局、三次重複、50 回合無進展。</p>
         </div>
         <footer class="footer">
             <p>© 2025 78PlayGame.com。保留所有權利。</p>
