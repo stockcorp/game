@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>西洋棋遊戲</title>
+    <!-- 引入 Chessboard.js 的 CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game-container {
+            text-align: center;
+        }
+        #status {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        #fen, #pgn {
+            font-size: 14px;
+            color: #555;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="status"></div>
+        <div id="fen"></div>
+        <div id="pgn"></div>
+        <div id="board" style="width: 400px"></div>
+    </div>
+
+    <!-- 引入 jQuery（Chessboard.js 依賴） -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- 引入 Chess.js 和 Chessboard.js -->
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.12.0/chess.min.js"></script>
+    <script>
+        // 初始化 Chess.js
+        const game = new Chess();
+
+        // 初始化 Chessboard.js
+        const boardConfig = {
+            draggable: true,
+            position: 'start',
+            onDragStart: onDragStart,
+            onDrop: onDrop,
+            onSnapEnd: onSnapEnd
+        };
+        const board = Chessboard('board', boardConfig);
+
+        // 更新遊戲狀態顯示
+        function updateStatus() {
+            let status = '';
+            const moveColor = game.turn() === 'w' ? '白方' : '黑方';
+
+            if (game.in_checkmate()) {
+                status = `遊戲結束：${moveColor} 被將死，${game.turn() === 'w' ? '黑方' : '白方'} 獲勝！`;
+            } else if (game.in_draw()) {
+                status = '遊戲結束：平局';
+            } else {
+                status = `${moveColor} 走子`;
+                if (game.in_check()) {
+                    status += '，處於將軍狀態';
+                }
+            }
+
+            // 更新狀態、FEN 和 PGN
+            $('#status').html(status);
+            $('#fen').html(`FEN: ${game.fen()}`);
+            $('#pgn').html(`PGN: ${game.pgn()}`);
+        }
+
+        // 拖動開始時的檢查
+        function onDragStart(source, piece, position, orientation) {
+            // 遊戲結束時禁止拖動
+            if (game.game_over()) return false;
+
+            // 僅允許當前玩家的棋子被拖動
+            if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+                (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+                return false;
+            }
+        }
+
+        // 放下棋子時的處理
+        function onDrop(source, target) {
+            // 嘗試移動
+            const move = game.move({
+                from: source,
+                to: target,
+                promotion: 'q' // 簡化處理，兵升變為皇后
+            });
+
+            // 如果移動不合法，恢復棋子位置
+            if (move === null) return 'snapback';
+
+            // 更新狀態
+            updateStatus();
+        }
+
+        // 移動完成後更新棋盤
+        function onSnapEnd() {
+            board.position(game.fen());
+        }
+
+        // 點擊格子選擇棋子（支援點擊移動）
+        boardConfig.onSquareClick = function(square) {
+            if (game.game_over()) return;
+
+            const selected = $('.square-' + square).hasClass('highlight');
+            $('.square-55').removeClass('highlight'); // 清除高亮
+
+            // 如果點擊的是當前玩家的棋子，顯示合法移動
+            const piece = game.get(square);
+            if (piece && piece.color === game.turn()) {
+                $('.square-' + square).addClass('highlight');
+                const moves = game.moves({ square: square, verbose: true });
+                moves.forEach(move => {
+                    $('.square-' + move.to).addClass('highlight');
+                });
+            } else if (selected) {
+                // 如果點擊的是高亮的目標格子，執行移動
+                const from = $('.square-55.highlight').attr('data-square');
+                const move = game.move({
+                    from: from,
+                    to: square,
+                    promotion: 'q'
+                });
+                if (move) {
+                    board.position(game.fen());
+                    updateStatus();
+                }
+                $('.square-55').removeClass('highlight');
+            }
+        };
+
+        // 初始化狀態
+        updateStatus();
+    </script>
+</body>
+</html>
