@@ -5,12 +5,11 @@ let cellWidth, cellHeight;
 
 function resizeCanvas() {
     try {
-        const container = document.querySelector('.board-section');
-        if (!container) throw new Error('Board section not found in DOM');
-        const containerWidth = container.offsetWidth || 480;
-        const maxWidth = Math.min(containerWidth, 480);
-        canvas.width = maxWidth;
-        canvas.height = maxWidth; // 確保 8x8 正方形
+        if (!canvas) throw new Error('Canvas element not found');
+        canvas.width = 480;  // 強制設置初始尺寸
+        canvas.height = 480;
+        canvas.style.width = '480px';  // 確保可見
+        canvas.style.height = '480px';
         cellWidth = canvas.width / gridWidth;
         cellHeight = canvas.height / gridHeight;
         console.log('Canvas resized:', canvas.width, canvas.height);
@@ -37,11 +36,12 @@ function drawBoard() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, checking canvas');
     if (!canvas) {
-        console.error('Canvas element not found, check ID "chess-board"');
+        console.error('Canvas not found, check ID "chess-board" in HTML');
         return;
     }
-    console.log('DOM loaded, initializing canvas');
+    console.log('Canvas found, initializing');
     resizeCanvas();
     drawBoard();
 });
