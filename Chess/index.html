@@ -3,104 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="免費線上西洋棋 Chess，挑戰 AI 或學習玩法，享受經典策略遊戲樂趣！">
-    <meta name="keywords" content="免費線上西洋棋, Chess, 線上棋類遊戲, 西洋棋 AI, 免費棋牌遊戲">
-    <meta name="robots" content="index, follow">
-    <meta name="author" content="78PlayGame Team">
-    <meta property="og:title" content="免費線上棋牌遊戲網 (78PlayGame) - 西洋棋 Chess">
-    <meta property="og:description" content="免費線上玩西洋棋 Chess，挑戰 AI 或學習玩法，享受經典策略遊戲樂趣！">
-    <meta property="og:image" content="https://xbon520.github.io/game/img/banner.jpg">
-    <meta property="og:url" content="https://xbon520.github.io/game/Chess/">
-    <meta property="og:type" content="website">
-    <title>免費線上棋牌遊戲網 (78PlayGame) - 西洋棋 Chess</title>
+    <title>西洋棋測試 - 78PlayGame</title>
     <link rel="stylesheet" href="../styles.css">
+    <style>
+        /* 內嵌樣式，確保 Canvas 可見 */
+        #chess-board {
+            border: 2px solid #000;
+            display: block;
+            margin: 0 auto;
+        }
+        .board-section {
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <img src="../img/banner.jpg" alt="78PlayGame Banner" class="banner">
-            <h1>免費線上棋牌遊戲網 (78PlayGame)</h1>
-            <nav class="menu">
-                <a href="../index.html" class="menu-btn">象棋 Xiangqi</a>
-                <a href="../Dark_Pool_Chess/index.html" class="menu-btn">暗棋 Dark Pool Chess</a>
-                <a href="./index.html" class="menu-btn active">西洋棋 Chess</a>
-                <a href="../Go/index.html" class="menu-btn">圍棋 Go</a>
-                <a href="../Gomoku/index.html" class="menu-btn">五子棋 Gomoku</a>
-                <a href="../Draughts/index.html" class="menu-btn">國際跳棋 Draughts</a>
-                <a href="../about.html" class="menu-btn">關於</a>
-            </nav>
-        </header>
-        <div class="game-section">
-            <div class="ad-left">
-                <ins class="adsbygoogle" style="display:block" data-ad-client="你的 AdSense ID" data-ad-slot="你的廣告位 ID" data-ad-format="auto"></ins>
-                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-            </div>
-            <div class="game-content">
-                <div class="scoreboard">
-                    <div class="score-columns">
-                        <div class="score-column captured-pieces">
-                            <h3 class="section-title">計分板</h3>
-                            <div class="captured-list" id="current-player">當前玩家：白方</div>
-                            <div class="captured-list" id="ai-player">AI玩家：黑方</div>
-                        </div>
-                        <div class="score-column captured-pieces">
-                            <h3 class="section-title">場上棋數</h3>
-                            <div class="captured-list" id="white-score">白方：16</div>
-                            <div class="captured-list" id="black-score">黑方：16</div>
-                        </div>
-                        <div class="score-column captured-pieces">
-                            <h3 class="section-title">被吃棋數</h3>
-                            <div class="captured-list" id="white-captured">白方被吃：<span></span></div>
-                            <div class="captured-list" id="black-captured">黑方被吃：<span></span></div>
-                        </div>
-                        <div class="score-column controls">
-                            <div class="difficulty-buttons">
-                                <button id="easy-btn">簡單</button>
-                                <button id="hard-btn">困難</button>
-                            </div>
-                            <div class="difficulty-display" id="difficulty-display">模式：簡單</div>
-                            <button id="reset-btn">重新開始</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="board-section">
-                    <canvas id="chess-board"></canvas>
-                </div>
-            </div>
-            <div class="ad-right">
-                <ins class="adsbygoogle" style="display:block" data-ad-client="你的 AdSense ID" data-ad-slot="你的廣告位 ID" data-ad-format="auto"></ins>
-                <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-            </div>
-        </div>
-        <div class="rules-box">
-            <h2>西洋棋玩法說明</h2>
-            <p><strong>棋盤</strong></p>
-            <p>大小：8x8 格，共 64 個格子，黑白交替。</p>
-            <p><strong>棋子</strong></p>
-            <p>白方：王 (K) x1、后 (Q) x1、車 (R) x2、象 (B) x2、馬 (N) x2、兵 (P) x8。</p>
-            <p>黑方：王 (k) x1、后 (q) x1、車 (r) x2、象 (b) x2、馬 (n) x2、兵 (p) x8。</p>
-            <p><strong>初始位置</strong></p>
-            <p>白方在第 1-2 排，黑方在第 7-8 排，玩家控制白方，AI 控制黑方。</p>
-            <p><strong>移動規則</strong></p>
-            <p>兵：前進 1 格（初始可 2 格），斜 1 格吃子，吃過路兵，升變。</p>
-            <p>車：水平或垂直任意格。</p>
-            <p>馬：L 形移動（2x1 或 1x2）。</p>
-            <p>象：對角線任意格。</p>
-            <p>后：車與象的結合，任意方向任意格。</p>
-            <p>王：周圍 1 格，王車易位。</p>
-            <p><strong>特殊規則</strong></p>
-            <p>王車易位：王與車未移動時可短邊 (O-O) 或長邊 (O-O-O) 移動。</p>
-            <p>吃過路兵：兵初始前進 2 格時可被對方兵吃。</p>
-            <p>兵升變：兵到達對方底線可升為后、車、象或馬。</p>
-            <p><strong>勝利與和局</strong></p>
-            <p>將死對方王即勝，和局條件包括僵局、三次重複、50 回合無進展。</p>
-        </div>
-        <footer class="footer">
-            <p>© 2025 78PlayGame.com。保留所有權利。</p>
-        </footer>
-        <audio id="stone-sound" src="../img/stone-drop.mp3" preload="auto"></audio>
+    <div class="board-section">
+        <canvas id="chess-board"></canvas>
     </div>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
     <script src="./script.js"></script>
 </body>
 </html>
