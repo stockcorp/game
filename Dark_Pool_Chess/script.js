@@ -10,7 +10,7 @@ let selectedPiece = null, gameOver = false;
 let redCaptured = [], blackCaptured = [];
 let difficulty = 'easy';
 const EASY_DEPTH = 3, HARD_DEPTH = 4;
-let firstMove = true;
+let firstMove = true; // true 表示玩家第一步，false 表示遊戲進入輪流階段
 let aiMoving = false;
 
 function resizeCanvas() {
@@ -377,12 +377,13 @@ function isAIPiece(piece) {
 }
 
 function aiMove() {
-    if (gameOver || !aiColor || currentPlayer !== aiColor || aiMoving) {
-        console.log('AI not moving - gameOver:', gameOver, 'aiColor:', aiColor, 'currentPlayer:', currentPlayer, 'aiMoving:', aiMoving);
+    if (gameOver || !aiColor) {
+        console.log('AI not moving - gameOver:', gameOver, 'aiColor:', aiColor);
+        aiMoving = false;
         return;
     }
     aiMoving = true;
-    console.log('AI moving');
+    console.log('AI moving, firstMove:', firstMove);
 
     const validMoves = [];
     const depth = difficulty === 'easy' ? EASY_DEPTH : HARD_DEPTH;
@@ -392,7 +393,7 @@ function aiMove() {
             const cell = board[y][x];
             if (!cell.revealed) {
                 validMoves.push({ type: 'flip', x, y });
-            } else if (cell.piece && isAIPiece(cell.piece)) {
+            } else if (!firstMove && cell.piece && isAIPiece(cell.piece)) {
                 for (let ty = 0; ty < gridHeight; ty++) {
                     for (let tx = 0; tx < gridWidth; tx++) {
                         if (isValidMoveForAI(x, y, tx, ty)) {
@@ -449,13 +450,14 @@ function aiMove() {
         animatePiece(bestMove.x, bestMove.y, bestMove.x, bestMove.y, board[bestMove.y][bestMove.x].piece, () => {
             updateScoreboard();
             updateCapturedList();
+            if (firstMove) firstMove = false; // AI 完成第一步
             if (!checkGameOver()) {
                 currentPlayer = playerColor;
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
             }
             aiMoving = false;
-            console.log('AI flipped piece');
+            console.log('AI flipped piece, firstMove:', firstMove);
         });
     } else {
         const piece = board[bestMove.fromY][bestMove.fromX].piece;
@@ -500,12 +502,11 @@ function handleMove(e) {
             animatePiece(x, y, x, y, piece, () => {
                 updateScoreboard();
                 updateCapturedList();
-                firstMove = false;
                 currentPlayer = aiColor;
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
-                setTimeout(aiMove, 500);
-                console.log('First move - playerColor:', playerColor, 'aiColor:', aiColor);
+                console.log('Player flipped piece - playerColor:', playerColor, 'aiColor:', aiColor);
+                setTimeout(aiMove, 500); // AI 執行第一步
             });
         }
     } else if (selectedPiece) {
