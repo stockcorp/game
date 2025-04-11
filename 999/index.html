@@ -88,7 +88,7 @@
             justify-content: center;
             max-width: 720px;
             position: absolute;
-            bottom: 100px; /* 上移避免遮擋 */
+            bottom: 150px;
             z-index: 2;
         }
         #opponents {
@@ -148,7 +148,7 @@
             display: flex;
             gap: 10px;
             position: absolute;
-            bottom: 20px; /* 調整至更低位置 */
+            bottom: 80px;
             z-index: 2;
         }
         button {
@@ -166,15 +166,18 @@
         }
         #info-panel {
             position: absolute;
-            bottom: 180px; /* 上移避免遮擋玩家 */
-            left: 20px;
-            width: 300px;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
             padding: 15px;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            border: 1px solid #ddd;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 240, 240, 0.95));
+            border-radius: 15px 15px 0 0;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+            border: 1px solid #ccc;
+            border-bottom: none;
             z-index: 3;
+            text-align: center;
         }
         #status, #scores, #timer {
             font-size: 18px;
@@ -183,7 +186,7 @@
         }
         #history {
             width: 100%;
-            height: 150px;
+            height: 100px;
             overflow-y: auto;
             background-color: #fff;
             border: 1px solid #ccc;
@@ -221,6 +224,7 @@
         <div id="controls">
             <button onclick="playCards()">出牌</button>
             <button onclick="pass()">過牌</button>
+            <button onclick="toggleAutoPlay()">電腦代玩</button>
             <button onclick="resetGame()">重新洗牌</button>
         </div>
         <div id="player-hand">
@@ -247,6 +251,7 @@
         let moveHistory = [];
         let timer = 30;
         let timerInterval = null;
+        let isAutoPlay = false;
 
         // 音效
         const startSound = new Audio('start.mp3');
@@ -283,12 +288,15 @@
             passes = 0;
             moveHistory = [];
             timer = 30;
+            isAutoPlay = false;
             updateUI();
             updateStatus();
             updateHistory();
             startTimer();
             if (currentPlayer !== 0) {
                 setTimeout(aiPlay, 1500);
+            } else if (isAutoPlay) {
+                setTimeout(autoPlay, 1500);
             }
         }
 
@@ -374,7 +382,7 @@
                 calculateScores();
                 clearInterval(timerInterval);
             } else {
-                document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}`;
+                document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}${isAutoPlay && currentPlayer === 0 ? ' (電腦代玩)' : ''}`;
             }
         }
 
@@ -401,7 +409,7 @@
 
         // 選擇卡牌
         function toggleCardSelection(index) {
-            if (currentPlayer !== 0) return;
+            if (currentPlayer !== 0 || isAutoPlay) return;
             const idx = selectedCards.indexOf(index);
             if (idx === -1) {
                 selectedCards.push(index);
@@ -413,7 +421,7 @@
 
         // 出牌
         function playCards() {
-            if (currentPlayer !== 0) return;
+            if (currentPlayer !== 0 || isAutoPlay) return;
             const cards = selectedCards.map(i => hands[0][i]);
             if (cards.length === 0) {
                 alert('請選擇卡牌！');
@@ -452,7 +460,7 @@
 
         // 過牌
         function pass() {
-            if (currentPlayer !== 0) return;
+            if (currentPlayer !== 0 || isAutoPlay) return;
             passSound.play().catch(e => console.log('Pass sound error:', e));
             moveHistory.push('玩家: 過牌');
             passes++;
@@ -462,6 +470,64 @@
                 passes = 0;
             }
             nextPlayer();
+        }
+
+        // 電腦代玩
+        function autoPlay() {
+            if (currentPlayer !== 0 || !isAutoPlay) return;
+            const hand = hands[0];
+            if (!hand) return;
+            if (!lastPlayed) {
+                let cards = hand.filter(card => card.rank === '3' && card.suit === '♣');
+                if (cards.length > 0) {
+                    const combo = getCombination(cards);
+                    playComboSound(combo.type);
+                    animateCards(cards, 'player', combo.type);
+                    moveHistory.push(`玩家 (電腦代玩) 出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                    tableCards = cards;
+                    lastPlayed = combo;
+                    hands[0] = hand.filter(card => !cards.includes(card));
+                    passes = 0;
+                    nextPlayer();
+                    return;
+                }
+            }
+            const combos = getAllCombinations(hand);
+            let validCombo = null;
+            for (let combo of combos) {
+                if (!lastPlayed || canBeat(combo, lastPlayed)) {
+                    validCombo = combo;
+                    break;
+                }
+            }
+            if (validCombo) {
+                playComboSound(validCombo.type);
+                animateCards(validCombo.cards, 'player', validCombo.type);
+                moveHistory.push(`玩家 (電腦代玩) 出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                tableCards = validCombo.cards;
+                lastPlayed = validCombo;
+                hands[0] = hand.filter(card => !validCombo.cards.includes(card));
+                passes = 0;
+            } else {
+                passSound.play().catch(e => console.log('Pass sound error:', e));
+                moveHistory.push('玩家 (電腦代玩): 過牌');
+                passes++;
+                if (passes >= 3) {
+                    tableCards = [];
+                    lastPlayed = null;
+                    passes = 0;
+                }
+            }
+            nextPlayer();
+        }
+
+        // 切換電腦代玩
+        function toggleAutoPlay() {
+            isAutoPlay = !isAutoPlay;
+            document.getElementById('status').textContent = isAutoPlay ? '輪到 玩家 (電腦代玩)' : '輪到 玩家 (玩家手動玩)';
+            if (isAutoPlay && currentPlayer === 0) {
+                setTimeout(autoPlay, 1500);
+            }
         }
 
         // 下一個玩家
@@ -477,6 +543,8 @@
             startTimer();
             if (currentPlayer !== 0) {
                 setTimeout(aiPlay, 1500);
+            } else if (isAutoPlay) {
+                setTimeout(autoPlay, 1500);
             }
         }
 
