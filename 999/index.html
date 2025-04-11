@@ -21,7 +21,7 @@
             gap: 20px;
             position: relative;
             width: 900px;
-            min-height: 600px;
+            min-height: 700px;
         }
         #table {
             display: flex;
@@ -33,6 +33,7 @@
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
             position: relative;
+            z-index: 1;
         }
         #table-cards {
             display: flex;
@@ -66,12 +67,19 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
             transform: translateY(-15px);
         }
-        .card.animate {
+        .card.animate-slide {
             animation: slideToTable 0.5s ease-out forwards;
         }
+        .card.animate-flip {
+            animation: flipCard 0.5s ease forwards;
+        }
         @keyframes slideToTable {
-            from { transform: translate(0, 0); opacity: 1; }
-            to { transform: translate(0, 0); opacity: 1; }
+            from { transform: translate(var(--start-x), var(--start-y)); }
+            to { transform: translate(0, 0); }
+        }
+        @keyframes flipCard {
+            from { transform: perspective(1000px) rotateY(180deg); }
+            to { transform: perspective(1000px) rotateY(0deg); }
         }
         #player-hand {
             display: flex;
@@ -79,6 +87,8 @@
             gap: 5px;
             justify-content: center;
             max-width: 720px;
+            position: absolute;
+            bottom: 20px;
         }
         #opponents {
             position: relative;
@@ -111,7 +121,7 @@
         }
         #ai2 {
             position: absolute;
-            right: -120px;
+            left: -120px;
             top: 50%;
             transform: translateY(-50%);
         }
@@ -120,7 +130,7 @@
         }
         #ai3 {
             position: absolute;
-            left: -120px;
+            right: -120px;
             top: 50%;
             transform: translateY(-50%);
         }
@@ -130,6 +140,8 @@
         #controls {
             display: flex;
             gap: 10px;
+            position: absolute;
+            bottom: 120px;
         }
         button {
             padding: 12px 24px;
@@ -146,10 +158,31 @@
         #status {
             font-size: 20px;
             color: #333;
+            position: absolute;
+            top: 250px;
         }
         #scores {
             font-size: 18px;
             color: #333;
+            position: absolute;
+            top: 280px;
+        }
+        #timer {
+            font-size: 18px;
+            color: #333;
+            position: absolute;
+            top: 310px;
+        }
+        #history {
+            width: 300px;
+            height: 150px;
+            overflow-y: auto;
+            background-color: #fff;
+            border: 1px solid #333;
+            padding: 10px;
+            font-size: 16px;
+            position: absolute;
+            top: 340px;
         }
     </style>
 </head>
@@ -174,6 +207,8 @@
         </div>
         <div id="status">等待開始...</div>
         <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
+        <div id="timer">計時器: 30秒</div>
+        <div id="history"></div>
         <div id="controls">
             <button onclick="playCards()">出牌</button>
             <button onclick="pass()">過牌</button>
@@ -198,11 +233,19 @@
         let scores = [0, 0, 0, 0];
         let selectedCards = [];
         let passes = 0;
+        let moveHistory = [];
+        let timer = 30;
+        let timerInterval = null;
 
         // 音效
         const startSound = new Audio('start.mp3');
         const passSound = new Audio('pass.mp3');
-        const playSound = new Audio('po.mp3');
+        const singleSound = new Audio('po.mp3');
+        const pairSound = new Audio('001.mp3');
+        const straightSound = new Audio('002.mp3');
+        const straightFlushSound = new Audio('003.mp3');
+        const fourOfAKindSound = new Audio('004.mp3');
+        const fullHouseSound = new Audio('005.mp3');
 
         // 初始化遊戲
         function initGame() {
@@ -220,13 +263,20 @@
             }
             hands.forEach(hand => hand.sort(compareCards));
             currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♣'));
-            if (currentPlayer === -1) currentPlayer = 0; // 防止無♣3的情況
+            if (currentPlayer === -1) currentPlayer = 0;
             tableCards = [];
             lastPlayed = null;
             selectedCards = [];
             passes = 0;
+            moveHistory = [];
+            timer = 30;
             updateUI();
             updateStatus();
+            updateHistory();
+            startTimer();
+            if (currentPlayer !== 0) {
+                setTimeout(aiPlay, 1500);
+            }
         }
 
         // 比較卡牌大小
@@ -296,9 +346,31 @@
             if (hands.some(hand => hand && hand.length === 0)) {
                 calculateScores();
                 document.getElementById('status').textContent = `回合結束！${names[hands.findIndex(hand => hand && hand.length === 0)]} 獲勝！`;
+                clearInterval(timerInterval);
             } else {
                 document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}`;
             }
+        }
+
+        // 更新計時器
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timer = 30;
+            document.getElementById('timer').textContent = `計時器: ${timer}秒`;
+            timerInterval = setInterval(() => {
+                timer--;
+                document.getElementById('timer').textContent = `計時器: ${timer}秒`;
+                if (timer <= 0) {
+                    pass(); // 時間到自動過牌
+                }
+            }, 1000);
+        }
+
+        // 更新移動歷史
+        function updateHistory() {
+            const historyDiv = document.getElementById('history');
+            historyDiv.innerHTML = moveHistory.map((move, i) => `${i + 1}. ${move}`).join('<br>');
+            historyDiv.scrollTop = historyDiv.scrollHeight;
         }
 
         // 選擇卡牌
@@ -334,20 +406,15 @@
                 updateUI();
                 return;
             }
-            if (lastPlayed && combo.type !== lastPlayed.type) {
-                alert('組合類型必須相同！');
-                selectedCards = [];
-                updateUI();
-                return;
-            }
             if (!lastPlayed && cards.length > 0 && !cards.some(card => card.rank === '3' && card.suit === '♣')) {
                 alert('第一輪必須包含♣3！');
                 selectedCards = [];
                 updateUI();
                 return;
             }
-            playSound.play().catch(e => console.log('Play sound error:', e));
-            animateCards(cards, 'player');
+            playComboSound(combo.type);
+            animateCards(cards, 'player', combo.type);
+            moveHistory.push(`玩家出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
             selectedCards.sort((a, b) => b - a);
             for (let i of selectedCards) {
                 hands[0].splice(i, 1);
@@ -361,6 +428,7 @@
         function pass() {
             if (currentPlayer !== 0) return;
             passSound.play().catch(e => console.log('Pass sound error:', e));
+            moveHistory.push('玩家: 過牌');
             passes++;
             if (passes >= 3) {
                 tableCards = [];
@@ -375,12 +443,14 @@
             currentPlayer = (currentPlayer + 1) % 4;
             updateUI();
             updateStatus();
+            updateHistory();
             if (hands[currentPlayer] && hands[currentPlayer].length === 0) {
                 calculateScores();
                 return;
             }
+            startTimer();
             if (currentPlayer !== 0) {
-                setTimeout(aiPlay, 1000);
+                setTimeout(aiPlay, 1500);
             }
         }
 
@@ -388,13 +458,16 @@
         function aiPlay() {
             const hand = hands[currentPlayer];
             if (!hand) return;
+            const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
             if (!lastPlayed) {
                 let cards = hand.filter(card => card.rank === '3' && card.suit === '♣');
                 if (cards.length > 0) {
-                    playSound.play().catch(e => console.log('Play sound error:', e));
-                    animateCards(cards, `ai${currentPlayer}`);
+                    const combo = getCombination(cards);
+                    playComboSound(combo.type);
+                    animateCards(cards, `ai${currentPlayer}`, combo.type);
+                    moveHistory.push(`${names[currentPlayer]}出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                     tableCards = cards;
-                    lastPlayed = getCombination(cards);
+                    lastPlayed = combo;
                     hands[currentPlayer] = hand.filter(card => !cards.includes(card));
                     passes = 0;
                     nextPlayer();
@@ -404,20 +477,22 @@
             const combos = getAllCombinations(hand);
             let validCombo = null;
             for (let combo of combos) {
-                if (!lastPlayed || (combo.type === lastPlayed.type && canBeat(combo, lastPlayed))) {
+                if (!lastPlayed || canBeat(combo, lastPlayed)) {
                     validCombo = combo;
                     break;
                 }
             }
             if (validCombo) {
-                playSound.play().catch(e => console.log('Play sound error:', e));
-                animateCards(validCombo.cards, `ai${currentPlayer}`);
+                playComboSound(validCombo.type);
+                animateCards(validCombo.cards, `ai${currentPlayer}`, validCombo.type);
+                moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 tableCards = validCombo.cards;
                 lastPlayed = validCombo;
                 hands[currentPlayer] = hand.filter(card => !validCombo.cards.includes(card));
                 passes = 0;
             } else {
                 passSound.play().catch(e => console.log('Pass sound error:', e));
+                moveHistory.push(`${names[currentPlayer]}: 過牌`);
                 passes++;
                 if (passes >= 3) {
                     tableCards = [];
@@ -428,38 +503,51 @@
             nextPlayer();
         }
 
-        // 卡牌滑動動畫
-        function animateCards(cards, source) {
+        // 播放組合音效
+        function playComboSound(type) {
+            const sounds = {
+                'single': singleSound,
+                'pair': pairSound,
+                'straight': straightSound,
+                'straightFlush': straightFlushSound,
+                'fourOfAKind': fourOfAKindSound,
+                'fullHouse': fullHouseSound
+            };
+            const sound = sounds[type] || singleSound;
+            sound.play().catch(e => console.log(`Sound error (${type}):`, e));
+        }
+
+        // 卡牌滑動與翻轉動畫
+        function animateCards(cards, source, comboType) {
             const tableDiv = document.getElementById('table-cards');
             tableDiv.innerHTML = '';
             cards.forEach(card => {
                 const cardDiv = document.createElement('div');
-                cardDiv.classList.add('card', ['♥', '♦'].includes(card.suit) ? 'red' : 'black', 'animate');
+                cardDiv.classList.add('card', ['♥', '♦'].includes(card.suit) ? 'red' : 'black', 'animate-slide', 'animate-flip');
                 cardDiv.textContent = `${card.suit}${card.rank}`;
-                // 根據來源設置初始位置
                 let startX = 0, startY = 0;
                 if (source === 'player') {
                     startX = 0;
-                    startY = 200; // 從下方（玩家手牌）
+                    startY = 200;
                 } else if (source === 'ai1') {
                     startX = 0;
-                    startY = -200; // 從上方（AI1）
+                    startY = -200;
                 } else if (source === 'ai2') {
-                    startX = 300; // 從右側（AI2）
+                    startX = -300;
                     startY = 0;
                 } else if (source === 'ai3') {
-                    startX = -300; // 從左側（AI3）
+                    startX = 300;
                     startY = 0;
                 }
-                cardDiv.style.transform = `translate(${startX}px, ${startY}px)`;
+                cardDiv.style.setProperty('--start-x', `${startX}px`);
+                cardDiv.style.setProperty('--start-y', `${startY}px`);
+                cardDiv.style.transform = `translate(${startX}px, ${startY}px) rotateY(180deg)`;
                 tableDiv.appendChild(cardDiv);
-                // 觸發滑動到中心
                 setTimeout(() => {
-                    cardDiv.style.transform = 'translate(0, 0)';
-                    cardDiv.classList.remove('animate');
+                    cardDiv.style.transform = 'translate(0, 0) rotateY(0deg)';
+                    cardDiv.classList.remove('animate-slide', 'animate-flip');
                 }, 50);
             });
-            // 更新tableCards
             setTimeout(() => {
                 tableCards = cards;
                 updateUI();
@@ -475,14 +563,10 @@
             if (cards.length === 2 && cards[0].rank === cards[1].rank) {
                 return { type: 'pair', value: rankOrder[cards[0].rank], suit: Math.max(suitOrder[cards[0].suit], suitOrder[cards[1].suit]), cards };
             }
-            if (cards.length === 3 && cards[0].rank === cards[1].rank && cards[1].rank === cards[2].rank) {
-                return { type: 'triple', value: rankOrder[cards[0].rank], cards };
-            }
             if (cards.length === 5) {
-                if (isStraightFlush(cards)) return { type: 'straightFlush', value: rankOrder[cards[0].rank], cards };
+                if (isStraightFlush(cards)) return { type: 'straightFlush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards };
                 if (isFourOfAKind(cards)) return { type: 'fourOfAKind', value: rankOrder[cards[1].rank], cards };
                 if (isFullHouse(cards)) return { type: 'fullHouse', value: rankOrder[cards[2].rank], cards };
-                if (isFlush(cards)) return { type: 'flush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards };
                 if (isStraight(cards)) return { type: 'straight', value: rankOrder[cards[0].rank], cards };
             }
             return null;
@@ -490,43 +574,83 @@
 
         // 檢查是否能打敗
         function canBeat(newCombo, oldCombo) {
-            if (newCombo.type !== oldCombo.type) return false;
-            if (['single', 'pair', 'flush'].includes(newCombo.type)) {
+            const typeOrder = { 'straightFlush': 6, 'fourOfAKind': 5, 'straight': 4, 'fullHouse': 4, 'pair': 2, 'single': 1 };
+            if (typeOrder[newCombo.type] > typeOrder[oldCombo.type]) {
+                return true;
+            }
+            if (typeOrder[newCombo.type] < typeOrder[oldCombo.type]) {
+                return false;
+            }
+            if (newCombo.type === 'single' || newCombo.type === 'pair') {
                 if (newCombo.value !== oldCombo.value) {
                     return newCombo.value > oldCombo.value;
                 }
                 return newCombo.suit > oldCombo.suit;
             }
-            if (['straightFlush', 'fourOfAKind', 'fullHouse', 'straight', 'triple'].includes(newCombo.type)) {
-                return newCombo.value > oldCombo.value;
+            if (newCombo.type === 'straightFlush') {
+                if (newCombo.value !== oldCombo.value) {
+                    return newCombo.value > oldCombo.value;
+                }
+                return newCombo.suit > oldCombo.suit;
             }
-            return false;
+            return newCombo.value > oldCombo.value;
         }
 
         // 獲取所有可能組合
         function getAllCombinations(hand) {
             let combos = [];
+            // 單張
             hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.rank], suit: suitOrder[card.suit], cards: [card] }));
+            // 一對
             for (let i = 0; i < hand.length - 1; i++) {
                 if (hand[i].rank === hand[i + 1].rank) {
                     combos.push({ type: 'pair', value: rankOrder[hand[i].rank], suit: Math.max(suitOrder[hand[i].suit], suitOrder[hand[i + 1].suit]), cards: [hand[i], hand[i + 1]] });
                 }
             }
-            for (let i = 0; i < hand.length - 2; i++) {
-                if (hand[i].rank === hand[i + 1].rank && hand[i + 1].rank === hand[i + 2].rank) {
-                    combos.push({ type: 'triple', value: rankOrder[hand[i].rank], cards: [hand[i], hand[i + 1], hand[i + 2]] });
-                }
-            }
+            // 五張組合
             if (hand.length >= 5) {
-                let fiveCards = hand.slice(0, 5);
-                let combo = getCombination(fiveCards);
-                if (combo) combos.push(combo);
+                const fiveCombos = getFiveCardCombinations(hand);
+                combos.push(...fiveCombos);
             }
             return combos.sort((a, b) => {
+                const typeOrder = { 'straightFlush': 6, 'fourOfAKind': 5, 'straight': 4, 'fullHouse': 4, 'pair': 2, 'single': 1 };
+                if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[a.type] - typeOrder[b.type];
                 if (a.value !== b.value) return a.value - b.value;
                 if (a.suit && b.suit) return a.suit - b.suit;
                 return 0;
             });
+        }
+
+        // 獲取五張牌組合
+        function getFiveCardCombinations(hand) {
+            const combos = [];
+            const combinations = getCombinations(hand, 5);
+            combinations.forEach(cards => {
+                cards.sort(compareCards);
+                if (isStraightFlush(cards)) combos.push({ type: 'straightFlush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards });
+                else if (isFourOfAKind(cards)) combos.push({ type: 'fourOfAKind', value: rankOrder[cards[1].rank], cards });
+                else if (isFullHouse(cards)) combos.push({ type: 'fullHouse', value: rankOrder[cards[2].rank], cards });
+                else if (isStraight(cards)) combos.push({ type: 'straight', value: rankOrder[cards[0].rank], cards });
+            });
+            return combos;
+        }
+
+        // 生成組合
+        function getCombinations(arr, k) {
+            const result = [];
+            function combine(start, combo) {
+                if (combo.length === k) {
+                    result.push([...combo]);
+                    return;
+                }
+                for (let i = start; i < arr.length; i++) {
+                    combo.push(arr[i]);
+                    combine(i + 1, combo);
+                    combo.pop();
+                }
+            }
+            combine(0, []);
+            return result;
         }
 
         // 五張牌組合檢查
@@ -575,6 +699,7 @@
             scores[winner] += points;
             updateUI();
             updateStatus();
+            updateHistory();
         }
 
         // 重置遊戲
