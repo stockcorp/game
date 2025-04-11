@@ -2,7 +2,7 @@ const canvas = document.getElementById('dark-pool-board');
 const ctx = canvas.getContext('2d');
 const gridWidth = 8, gridHeight = 4;
 let cellWidth, cellHeight, board = [];
-let currentPlayer = 'red'; // 玩家初始為紅方，翻棋後確定陣營
+let currentPlayer = 'red'; // 初始為紅方，翻棋後確定陣營
 let playerColor = null, aiColor = null;
 let redScore = 16, blackScore = 16;
 const stoneSound = document.getElementById('stone-sound');
@@ -218,18 +218,24 @@ function isValidMove(fromX, fromY, toX, toY) {
     if (!isPlayerPiece) return false;
     
     const dx = Math.abs(toX - fromX), dy = Math.abs(toY - fromY);
-    if (dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return false;
-
     const target = board[toY][toX] ? board[toY][toX].piece : null;
+
+    if (piece === 'P' || piece === 'p') {
+        if (dx === 0 && dy === 2) {
+            const midY = fromY + (toY > fromY ? 1 : -1);
+            return board[midY][fromX] && board[midY][fromX].piece && target && canEat(piece, target);
+        } else if (dx === 2 && dy === 0) {
+            const midX = fromX + (toX > fromX ? 1 : -1);
+            return board[fromY][midX] && board[fromY][midX].piece && target && canEat(piece, target);
+        }
+    }
+
+    if (dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return false;
     if (!target) return true;
     
     const isOpponentPiece = playerColor === 'red' ? /[kabnrps]/.test(target) : /[KABNRPS]/.test(target);
     if (!isOpponentPiece) return false;
 
-    if (piece === 'P' || piece === 'p') {
-        const midX = fromX + (toX - fromX) / 2, midY = fromY + (toY - fromY) / 2;
-        return board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
-    }
     return canEat(piece, target);
 }
 
@@ -240,24 +246,30 @@ function isValidMoveForAI(fromX, fromY, toX, toY) {
     if (!isAIPiece) return false;
     
     const dx = Math.abs(toX - fromX), dy = Math.abs(toY - fromY);
-    if (dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return false;
-
     const target = board[toY][toX] ? board[toY][toX].piece : null;
+
+    if (piece === 'P' || piece === 'p') {
+        if (dx === 0 && dy === 2) {
+            const midY = fromY + (toY > fromY ? 1 : -1);
+            return board[midY][fromX] && board[midY][fromX].piece && target && canEat(piece, target);
+        } else if (dx === 2 && dy === 0) {
+            const midX = fromX + (toX > fromX ? 1 : -1);
+            return board[fromY][midX] && board[fromY][midX].piece && target && canEat(piece, target);
+        }
+    }
+
+    if (dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return false;
     if (!target) return true;
     
     const isOpponentPiece = aiColor === 'red' ? /[kabnrps]/.test(target) : /[KABNRPS]/.test(target);
     if (!isOpponentPiece) return false;
 
-    if (piece === 'P' || piece === 'p') {
-        const midX = fromX + (toX - fromX) / 2, midY = fromY + (toY - fromY) / 2;
-        return board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
-    }
     return canEat(piece, target);
 }
 
 function evaluateBoard() {
     let score = 0;
-    const values = { K: 1000, A: 2, B: 2, N: 4, R: 9, P: 4.5, S: 1, k: 1000, a: 2, b: 2, n: 4, r: 9, p: 4.5, s: 1 };
+    const values = { K: 1000, A: 6, B: 5, R: 4, N: 3, P: 2, S: 1, k: 1000, a: 6, b: 5, r: 4, n: 3, p: 2, s: 1 };
     for (let y = 0; y < gridHeight; y++) {
         for (let x = 0; x < gridWidth; x++) {
             const cell = board[y][x];
@@ -542,7 +554,6 @@ function handleMove(e) {
     }
 }
 
-// 事件監聽器移至 DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('click', e => handleMove(e));
     canvas.addEventListener('touchstart', e => {
