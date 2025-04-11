@@ -9,15 +9,22 @@ const stoneSound = document.getElementById('stone-sound');
 let selectedPiece = null, gameOver = false;
 let whiteCaptured = [], blackCaptured = [];
 let difficulty = 'easy';
-const EASY_DEPTH = 2, HARD_DEPTH = 4; // 西洋棋計算較複雜，深度稍低
+const EASY_DEPTH = 2, HARD_DEPTH = 4;
 let aiMoving = false;
+let moveHistory = []; // 記錄移動歷史，用於三次重複和 50 回合規則
+let whiteKingMoved = false, blackKingMoved = false;
+let whiteRookKingMoved = false, whiteRookQueenMoved = false;
+let blackRookKingMoved = false, blackRookQueenMoved = false;
+let enPassantTarget = null; // 吃過路兵目標位置
 
 function resizeCanvas() {
     try {
-        const containerWidth = document.querySelector('.board-section').offsetWidth || 480;
+        const container = document.querySelector('.board-section');
+        if (!container) throw new Error('Board section not found');
+        const containerWidth = container.offsetWidth || 480;
         const maxWidth = Math.min(containerWidth, 480);
         canvas.width = maxWidth;
-        canvas.height = maxWidth; // 西洋棋為 8x8，正方形
+        canvas.height = maxWidth; // 8x8 正方形
         cellWidth = canvas.width / gridWidth;
         cellHeight = canvas.height / gridHeight;
         drawBoard();
@@ -28,18 +35,17 @@ function resizeCanvas() {
 }
 
 function initializeBoard() {
-    // 西洋棋初始佈局（白方在下，黑方在上）
     board = [
-        ['br', 'bn', 'bb', 'bq', 'bk', 'bb', 'bn', 'br'], // 黑方第8排
-        ['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'], // 黑方第7排
+        ['br', 'bn', 'bb', 'bq', 'bk', 'bb', 'bn', 'br'],
+        ['bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp', 'bp'],
         [null, null, null, null, null, null, null, null],
         [null, null, null, null, null, null, null, null],
         [null, null, null, null, null, null, null, null],
         [null, null, null, null, null, null, null, null],
-        ['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'], // 白方第2排
-        ['wr', 'wn', 'wb', 'wq', 'wk', 'wb', 'wn', 'wr']  // 白方第1排
-    ].map(row => row.map(piece => ({ piece, revealed: true }))); // 所有棋子初始明示
-
+        ['wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp', 'wp'],
+        ['wr', 'wn', 'wb', 'wq', 'wk', 'wb', 'wn', 'wr']
+    ].map(row => row.map(piece => ({ piece, revealed: true })));
+    
     console.log('Board initialized - White King:', board.flat().some(cell => cell && cell.piece === 'wk'));
     console.log('Board initialized - Black King:', board.flat().some(cell => cell && cell.piece === 'bk'));
     
@@ -53,6 +59,14 @@ function initializeBoard() {
     aiColor = 'black';
     selectedPiece = null;
     aiMoving = false;
+    moveHistory = [];
+    whiteKingMoved = false;
+    blackKingMoved = false;
+    whiteRookKingMoved = false;
+    whiteRookQueenMoved = false;
+    blackRookKingMoved = false;
+    blackRookQueenMoved = false;
+    enPassantTarget = null;
     updateScoreboard();
     updateCapturedList();
     updateDifficultyDisplay();
@@ -74,7 +88,7 @@ function drawBoard() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         for (let y = 0; y < gridHeight; y++) {
             for (let x = 0; x < gridWidth; x++) {
-                ctx.fillStyle = (x + y) % 2 === 0 ? '#f0d9b5' : '#8b5a2b'; // 黑白格
+                ctx.fillStyle = (x + y) % 2 === 0 ? '#f0d9b5' : '#8b5a2b';
                 ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
             }
         }
@@ -173,49 +187,85 @@ function checkGameOver() {
         alert('白方勝！');
         return true;
     }
+
+    // 檢查僵局和三次重複（簡化版）
+    if (!hasValidMoves(currentPlayer)) {
+        gameOver = true;
+        alert('和局 - 僵局！');
+        return true;
+    }
+
     return false;
 }
 
-function canEat(attacker, defender) {
-    return true; // 西洋棋中任何棋子可吃對方棋子，無等級限制
+function hasValidMoves(color) {
+    for (let y = 0; y < gridHeight; y++) {
+        for (let x = 0; x < gridWidth; x++) {
+            if (board[y][x].piece && board[y][x].piece.startsWith(color === 'white' ? 'w' : 'b')) {
+                for (let ty = 0; ty < gridHeight; ty++) {
+                    for (let tx = 0; tx < gridWidth; tx++) {
+                        if ((color === 'white' && isValidMove(x, y, tx, ty)) || (color === 'black' && isValidMoveForAI(x, y, tx, ty))) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
 }
 
-function isValidMove(fromX, fromY, toX, toY) {
+function isValidMove(fromX, fromY, toX, toY, checkKingSafety = true) {
     if (!board[fromY][fromX] || !board[fromY][fromX].piece.startsWith('w')) return false;
     const piece = board[fromY][fromX].piece;
     const dx = toX - fromX, dy = toY - fromY;
     const target = board[toY][toX] ? board[toY][toX].piece : null;
     const absDx = Math.abs(dx), absDy = Math.abs(dy);
 
-    // 檢查目標是否為己方棋子
     if (target && target.startsWith('w')) return false;
 
+    let isValid = false;
     switch (piece[1]) {
         case 'p': // 兵
             if (dx === 0 && !target) {
-                if (fromY === 6 && dy === -1) return true; // 前進一格
-                if (fromY === 6 && dy === -2 && !board[fromY - 1][fromX].piece) return true; // 初始前進兩格
-            } else if (absDx === 1 && dy === -1 && target) return true; // 吃子
-            return false;
+                if (fromY === 6 && dy === -1) isValid = true;
+                if (fromY === 6 && dy === -2 && !board[fromY - 1][fromX].piece && !board[fromY - 2][fromX].piece) isValid = true;
+            } else if (absDx === 1 && dy === -1 && target) isValid = true;
+            else if (absDx === 1 && dy === -1 && enPassantTarget && enPassantTarget.x === toX && enPassantTarget.y === toY) isValid = true;
+            break;
         case 'r': // 車
-            if (dx === 0 || dy === 0) return isPathClear(fromX, fromY, toX, toY);
-            return false;
+            if (dx === 0 || dy === 0) isValid = isPathClear(fromX, fromY, toX, toY);
+            break;
         case 'n': // 馬
-            return (absDx === 2 && absDy === 1) || (absDx === 1 && absDy === 2);
+            isValid = (absDx === 2 && absDy === 1) || (absDx === 1 && absDy === 2);
+            break;
         case 'b': // 象
-            if (absDx === absDy) return isPathClear(fromX, fromY, toX, toY);
-            return false;
+            if (absDx === absDy) isValid = isPathClear(fromX, fromY, toX, toY);
+            break;
         case 'q': // 后
-            if (dx === 0 || dy === 0 || absDx === absDy) return isPathClear(fromX, fromY, toX, toY);
-            return false;
+            if (dx === 0 || dy === 0 || absDx === absDy) isValid = isPathClear(fromX, fromY, toX, toY);
+            break;
         case 'k': // 王
-            return absDx <= 1 && absDy <= 1;
-        default:
-            return false;
+            if (absDx <= 1 && absDy <= 1) isValid = true;
+            else if (!whiteKingMoved && !isInCheck('white')) {
+                if (dy === 0 && dx === 2 && toX === 6 && fromY === 7 && !whiteRookKingMoved && isPathClear(fromX, fromY, 7, 7) && !isUnderAttack(5, 7, 'white') && !isUnderAttack(6, 7, 'white')) isValid = true; // 短邊易位
+                if (dy === 0 && dx === -2 && toX === 2 && fromY === 7 && !whiteRookQueenMoved && isPathClear(fromX, fromY, 0, 7) && !isUnderAttack(3, 7, 'white') && !isUnderAttack(2, 7, 'white')) isValid = true; // 長邊易位
+            }
+            break;
     }
+
+    if (isValid && checkKingSafety) {
+        const tempBoard = board.map(row => row.slice());
+        const targetPiece = tempBoard[toY][toX] ? tempBoard[toY][toX].piece : null;
+        tempBoard[toY][toX] = tempBoard[fromY][fromX];
+        tempBoard[fromY][fromX] = { piece: null, revealed: true };
+        if (isInCheck('white', tempBoard)) return false;
+    }
+
+    return isValid;
 }
 
-function isValidMoveForAI(fromX, fromY, toX, toY) {
+function isValidMoveForAI(fromX, fromY, toX, toY, checkKingSafety = true) {
     if (!board[fromY][fromX] || !board[fromY][fromX].piece.startsWith('b')) return false;
     const piece = board[fromY][fromX].piece;
     const dx = toX - fromX, dy = toY - fromY;
@@ -224,29 +274,45 @@ function isValidMoveForAI(fromX, fromY, toX, toY) {
 
     if (target && target.startsWith('b')) return false;
 
+    let isValid = false;
     switch (piece[1]) {
-        case 'p': // 兵
+        case 'p':
             if (dx === 0 && !target) {
-                if (fromY === 1 && dy === 1) return true;
-                if (fromY === 1 && dy === 2 && !board[fromY + 1][fromX].piece) return true;
-            } else if (absDx === 1 && dy === 1 && target) return true;
-            return false;
-        case 'r': // 車
-            if (dx === 0 || dy === 0) return isPathClear(fromX, fromY, toX, toY);
-            return false;
-        case 'n': // 馬
-            return (absDx === 2 && absDy === 1) || (absDx === 1 && absDy === 2);
-        case 'b': // 象
-            if (absDx === absDy) return isPathClear(fromX, fromY, toX, toY);
-            return false;
-        case 'q': // 后
-            if (dx === 0 || dy === 0 || absDx === absDy) return isPathClear(fromX, fromY, toX, toY);
-            return false;
-        case 'k': // 王
-            return absDx <= 1 && absDy <= 1;
-        default:
-            return false;
+                if (fromY === 1 && dy === 1) isValid = true;
+                if (fromY === 1 && dy === 2 && !board[fromY + 1][fromX].piece && !board[fromY + 2][fromX].piece) isValid = true;
+            } else if (absDx === 1 && dy === 1 && target) isValid = true;
+            else if (absDx === 1 && dy === 1 && enPassantTarget && enPassantTarget.x === toX && enPassantTarget.y === toY) isValid = true;
+            break;
+        case 'r':
+            if (dx === 0 || dy === 0) isValid = isPathClear(fromX, fromY, toX, toY);
+            break;
+        case 'n':
+            isValid = (absDx === 2 && absDy === 1) || (absDx === 1 && absDy === 2);
+            break;
+        case 'b':
+            if (absDx === absDy) isValid = isPathClear(fromX, fromY, toX, toY);
+            break;
+        case 'q':
+            if (dx === 0 || dy === 0 || absDx === absDy) isValid = isPathClear(fromX, fromY, toX, toY);
+            break;
+        case 'k':
+            if (absDx <= 1 && absDy <= 1) isValid = true;
+            else if (!blackKingMoved && !isInCheck('black')) {
+                if (dy === 0 && dx === 2 && toX === 6 && fromY === 0 && !blackRookKingMoved && isPathClear(fromX, fromY, 7, 0) && !isUnderAttack(5, 0, 'black') && !isUnderAttack(6, 0, 'black')) isValid = true;
+                if (dy === 0 && dx === -2 && toX === 2 && fromY === 0 && !blackRookQueenMoved && isPathClear(fromX, fromY, 0, 0) && !isUnderAttack(3, 0, 'black') && !isUnderAttack(2, 0, 'black')) isValid = true;
+            }
+            break;
     }
+
+    if (isValid && checkKingSafety) {
+        const tempBoard = board.map(row => row.slice());
+        const targetPiece = tempBoard[toY][toX] ? tempBoard[toY][toX].piece : null;
+        tempBoard[toY][toX] = tempBoard[fromY][fromX];
+        tempBoard[fromY][fromX] = { piece: null, revealed: true };
+        if (isInCheck('black', tempBoard)) return false;
+    }
+
+    return isValid;
 }
 
 function isPathClear(fromX, fromY, toX, toY) {
@@ -260,6 +326,41 @@ function isPathClear(fromX, fromY, toX, toY) {
         y += stepY;
     }
     return true;
+}
+
+function isInCheck(color, tempBoard = board) {
+    const king = color === 'white' ? 'wk' : 'bk';
+    let kingX, kingY;
+    for (let y = 0; y < gridHeight; y++) {
+        for (let x = 0; x < gridWidth; x++) {
+            if (tempBoard[y][x].piece === king) {
+                kingX = x;
+                kingY = y;
+                break;
+            }
+        }
+    }
+    for (let y = 0; y < gridHeight; y++) {
+        for (let x = 0; x < gridWidth; x++) {
+            if (tempBoard[y][x].piece && tempBoard[y][x].piece.startsWith(color === 'white' ? 'b' : 'w')) {
+                const isValid = color === 'white' ? isValidMoveForAI(x, y, kingX, kingY, false) : isValidMove(x, y, kingX, kingY, false);
+                if (isValid) return true;
+            }
+        }
+    }
+    return false;
+}
+
+function isUnderAttack(x, y, color, tempBoard = board) {
+    for (let ty = 0; ty < gridHeight; ty++) {
+        for (let tx = 0; tx < gridWidth; tx++) {
+            if (tempBoard[ty][tx].piece && tempBoard[ty][tx].piece.startsWith(color === 'white' ? 'b' : 'w')) {
+                const isValid = color === 'white' ? isValidMoveForAI(tx, ty, x, y, false) : isValidMove(tx, ty, x, y, false);
+                if (isValid) return true;
+            }
+        }
+    }
+    return false;
 }
 
 function evaluateBoard() {
@@ -287,15 +388,9 @@ function minimax(depth, alpha, beta, maximizingPlayer) {
                     for (let ty = 0; ty < gridHeight; ty++) {
                         for (let tx = 0; tx < gridWidth; tx++) {
                             if (isValidMoveForAI(x, y, tx, ty)) {
-                                const originalPiece = board[y][x].piece;
-                                const targetPiece = board[tx][ty] ? board[tx][ty].piece : null;
-                                if (targetPiece) whiteCaptured.push(targetPiece);
-                                board[tx][ty] = { piece: originalPiece, revealed: true };
-                                board[y][x] = { piece: null, revealed: true };
+                                const moveResult = simulateMove(x, y, tx, ty, 'black');
                                 const evalScore = minimax(depth - 1, alpha, beta, false);
-                                board[y][x] = { piece: originalPiece, revealed: true };
-                                board[tx][ty] = targetPiece ? { piece: targetPiece, revealed: true } : { piece: null, revealed: true };
-                                if (targetPiece) whiteCaptured.pop();
+                                undoMove(x, y, tx, ty, moveResult);
                                 maxEval = Math.max(maxEval, evalScore);
                                 alpha = Math.max(alpha, evalScore);
                                 if (beta <= alpha) break;
@@ -315,15 +410,9 @@ function minimax(depth, alpha, beta, maximizingPlayer) {
                     for (let ty = 0; ty < gridHeight; ty++) {
                         for (let tx = 0; tx < gridWidth; tx++) {
                             if (isValidMove(x, y, tx, ty)) {
-                                const originalPiece = board[y][x].piece;
-                                const targetPiece = board[tx][ty] ? board[tx][ty].piece : null;
-                                if (targetPiece) blackCaptured.push(targetPiece);
-                                board[tx][ty] = { piece: originalPiece, revealed: true };
-                                board[y][x] = { piece: null, revealed: true };
+                                const moveResult = simulateMove(x, y, tx, ty, 'white');
                                 const evalScore = minimax(depth - 1, alpha, beta, true);
-                                board[y][x] = { piece: originalPiece, revealed: true };
-                                board[tx][ty] = targetPiece ? { piece: targetPiece, revealed: true } : { piece: null, revealed: true };
-                                if (targetPiece) blackCaptured.pop();
+                                undoMove(x, y, tx, ty, moveResult);
                                 minEval = Math.min(minEval, evalScore);
                                 beta = Math.min(beta, evalScore);
                                 if (beta <= alpha) break;
@@ -337,9 +426,78 @@ function minimax(depth, alpha, beta, maximizingPlayer) {
     }
 }
 
+function simulateMove(fromX, fromY, toX, toY, color) {
+    const originalPiece = board[fromY][fromX].piece;
+    const targetPiece = board[toY][toX] ? board[toY][toX].piece : null;
+    let captured = null, enPassantCaptured = null, promoted = null, castling = false;
+
+    if (originalPiece[1] === 'P' && toY === 0) promoted = 'wQ'; // 兵升變（簡化為后）
+    if (originalPiece[1] === 'p' && toY === 7) promoted = 'bq';
+
+    if (originalPiece[1] === 'p' && enPassantTarget && enPassantTarget.x === toX && enPassantTarget.y === toY) {
+        enPassantCaptured = board[enPassantTarget.y][enPassantTarget.x].piece;
+        board[enPassantTarget.y][enPassantTarget.x] = { piece: null, revealed: true };
+    }
+    if (originalPiece[1] === 'P' && enPassantTarget && enPassantTarget.x === toX && enPassantTarget.y === toY) {
+        enPassantCaptured = board[enPassantTarget.y][enPassantTarget.x].piece;
+        board[enPassantTarget.y][enPassantTarget.x] = { piece: null, revealed: true };
+    }
+
+    if (originalPiece === 'wk' && Math.abs(toX - fromX) === 2) {
+        castling = true;
+        if (toX === 6) {
+            board[7][5] = board[7][7];
+            board[7][7] = { piece: null, revealed: true };
+        } else if (toX === 2) {
+            board[7][3] = board[7][0];
+            board[7][0] = { piece: null, revealed: true };
+        }
+    }
+    if (originalPiece === 'bk' && Math.abs(toX - fromX) === 2) {
+        castling = true;
+        if (toX === 6) {
+            board[0][5] = board[0][7];
+            board[0][7] = { piece: null, revealed: true };
+        } else if (toX === 2) {
+            board[0][3] = board[0][0];
+            board[0][0] = { piece: null, revealed: true };
+        }
+    }
+
+    if (targetPiece) captured = targetPiece;
+    board[toY][toX] = { piece: promoted || originalPiece, revealed: true };
+    board[fromY][fromX] = { piece: null, revealed: true };
+
+    const newEnPassantTarget = (originalPiece[1] === 'P' && fromY === 6 && toY === 4) || (originalPiece[1] === 'p' && fromY === 1 && toY === 3)
+        ? { x: fromX, y: (fromY + toY) / 2 } : null;
+
+    return { captured, enPassantCaptured, promoted, castling, newEnPassantTarget, originalEnPassant: enPassantTarget };
+}
+
+function undoMove(fromX, fromY, toX, toY, moveResult) {
+    const { captured, enPassantCaptured, promoted, castling, newEnPassantTarget, originalEnPassant } = moveResult;
+    const originalPiece = promoted ? (board[toY][toX].piece.startsWith('w') ? 'wP' : 'bp') : board[toY][toX].piece;
+
+    board[fromY][fromX] = { piece: originalPiece, revealed: true };
+    board[toY][toX] = captured ? { piece: captured, revealed: true } : { piece: null, revealed: true };
+
+    if (enPassantCaptured) board[originalEnPassant.y][originalEnPassant.x] = { piece: enPassantCaptured, revealed: true };
+    if (castling) {
+        if (toX === 6) {
+            board[fromY][7] = board[fromY][5];
+            board[fromY][5] = { piece: null, revealed: true };
+        } else if (toX === 2) {
+            board[fromY][0] = board[fromY][3];
+            board[fromY][3] = { piece: null, revealed: true };
+        }
+    }
+
+    enPassantTarget = originalEnPassant;
+}
+
 function aiMove() {
     if (gameOver || currentPlayer !== aiColor) {
-        console.log('AI not moving - gameOver:', gameOver, 'currentPlayer:', currentPlayer, 'aiColor:', aiColor);
+        console.log('AI not moving - gameOver:', gameOver, 'currentPlayer:', currentPlayer);
         aiMoving = false;
         return;
     }
@@ -373,15 +531,9 @@ function aiMove() {
 
     let bestMove = null, bestScore = -Infinity;
     for (const move of validMoves) {
-        const originalPiece = board[move.fromY][move.fromX].piece;
-        const targetPiece = board[move.toY][move.toX] ? board[move.toY][move.toX].piece : null;
-        if (targetPiece) whiteCaptured.push(targetPiece);
-        board[move.toY][move.toX] = { piece: originalPiece, revealed: true };
-        board[move.fromY][move.fromX] = { piece: null, revealed: true };
+        const moveResult = simulateMove(move.fromX, move.fromY, move.toX, move.toY, 'black');
         const evalScore = minimax(depth - 1, -Infinity, Infinity, false);
-        board[move.fromY][move.fromX] = { piece: originalPiece, revealed: true };
-        board[move.toY][move.toX] = targetPiece ? { piece: targetPiece, revealed: true } : { piece: null, revealed: true };
-        if (targetPiece) whiteCaptured.pop();
+        undoMove(move.fromX, move.fromY, move.toX, move.toY, moveResult);
         if (evalScore > bestScore) {
             bestScore = evalScore;
             bestMove = move;
@@ -389,9 +541,12 @@ function aiMove() {
     }
 
     const piece = board[bestMove.fromY][bestMove.fromX].piece;
-    if (board[bestMove.toY][bestMove.toX].piece) whiteCaptured.push(board[bestMove.toY][bestMove.toX].piece);
-    board[bestMove.toY][bestMove.toX] = { piece, revealed: true };
-    board[bestMove.fromY][bestMove.fromX] = { piece: null, revealed: true };
+    const moveResult = simulateMove(bestMove.fromX, bestMove.fromY, bestMove.toX, bestMove.toY, 'black');
+    if (piece === 'bk') blackKingMoved = true;
+    if (piece === 'br' && bestMove.fromX === 7 && bestMove.fromY === 0) blackRookKingMoved = true;
+    if (piece === 'br' && bestMove.fromX === 0 && bestMove.fromY === 0) blackRookQueenMoved = true;
+    enPassantTarget = moveResult.newEnPassantTarget;
+    moveHistory.push(JSON.stringify(board));
     animatePiece(bestMove.fromX, bestMove.fromY, bestMove.toX, bestMove.toY, piece, () => {
         updateScoreboard();
         updateCapturedList();
@@ -399,9 +554,9 @@ function aiMove() {
             currentPlayer = playerColor;
             document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'white' ? '白方' : '黑方'}`;
             drawBoard();
+            console.log('AI moved piece, triggering player');
         }
         aiMoving = false;
-        console.log('AI moved piece from:', bestMove.fromX, bestMove.fromY, 'to:', bestMove.toX, bestMove.toY);
     });
 }
 
@@ -420,9 +575,12 @@ function handleMove(e) {
     if (selectedPiece) {
         if (isValidMove(selectedPiece.x, selectedPiece.y, x, y)) {
             const piece = board[selectedPiece.y][selectedPiece.x].piece;
-            if (board[y][x].piece) blackCaptured.push(board[y][x].piece);
-            board[y][x] = { piece, revealed: true };
-            board[selectedPiece.y][selectedPiece.x] = { piece: null, revealed: true };
+            const moveResult = simulateMove(selectedPiece.x, selectedPiece.y, x, y, 'white');
+            if (piece === 'wk') whiteKingMoved = true;
+            if (piece === 'wr' && selectedPiece.x === 7 && selectedPiece.y === 7) whiteRookKingMoved = true;
+            if (piece === 'wr' && selectedPiece.x === 0 && selectedPiece.y === 7) whiteRookQueenMoved = true;
+            enPassantTarget = moveResult.newEnPassantTarget;
+            moveHistory.push(JSON.stringify(board));
             animatePiece(selectedPiece.x, selectedPiece.y, x, y, piece, () => {
                 updateScoreboard();
                 updateCapturedList();
@@ -448,6 +606,7 @@ function handleMove(e) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (!canvas) console.error('Canvas not found, check ID "chess-board"');
     canvas.addEventListener('click', e => handleMove(e));
     canvas.addEventListener('touchstart', e => {
         e.preventDefault();
