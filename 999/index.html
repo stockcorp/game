@@ -19,13 +19,15 @@
             flex-direction: column;
             align-items: center;
             gap: 20px;
+            position: relative;
+            width: 900px;
         }
         #table {
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 400px;
-            height: 200px;
+            width: 450px;
+            height: 225px;
             background-color: #4CAF50;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
@@ -38,57 +40,90 @@
             align-items: center;
         }
         .card {
-            width: 50px;
-            height: 70px;
+            width: 60px;
+            height: 84px;
             background-color: white;
             border: 1px solid #333;
             border-radius: 5px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 16px;
+            font-size: 20px;
             cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card.red {
+            color: red;
+        }
+        .card.black {
+            color: black;
         }
         .card.selected {
             border: 2px solid #ff0;
-            transform: translateY(-10px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transform: translateY(-15px);
         }
         #player-hand {
             display: flex;
             flex-wrap: wrap;
             gap: 5px;
             justify-content: center;
-            max-width: 600px;
+            max-width: 720px;
         }
         #opponents {
-            display: flex;
-            justify-content: space-between;
-            width: 600px;
+            position: relative;
+            width: 100%;
+            height: 100%;
         }
         .opponent {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
+            font-size: 18px;
         }
         .opponent-hand {
             display: flex;
             gap: 5px;
         }
         .opponent-card {
-            width: 30px;
-            height: 40px;
+            width: 36px;
+            height: 48px;
             background-color: #ccc;
             border: 1px solid #333;
             border-radius: 5px;
+        }
+        #ai1 {
+            position: absolute;
+            top: -140px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #ai2 {
+            position: absolute;
+            right: -120px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        #ai2 .opponent-hand {
+            flex-direction: column;
+        }
+        #ai3 {
+            position: absolute;
+            left: -120px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        #ai3 .opponent-hand {
+            flex-direction: column;
         }
         #controls {
             display: flex;
             gap: 10px;
         }
         button {
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 12px 24px;
+            font-size: 18px;
             cursor: pointer;
             background-color: #4CAF50;
             color: white;
@@ -99,11 +134,11 @@
             background-color: #45a049;
         }
         #status {
-            font-size: 18px;
+            font-size: 20px;
             color: #333;
         }
         #scores {
-            font-size: 16px;
+            font-size: 18px;
             color: #333;
         }
     </style>
@@ -111,15 +146,15 @@
 <body>
     <div id="game-container">
         <div id="opponents">
-            <div class="opponent">
+            <div class="opponent" id="ai1">
                 <div>AI 1</div>
                 <div class="opponent-hand" id="ai1-hand"></div>
             </div>
-            <div class="opponent">
+            <div class="opponent" id="ai2">
                 <div>AI 2</div>
                 <div class="opponent-hand" id="ai2-hand"></div>
             </div>
-            <div class="opponent">
+            <div class="opponent" id="ai3">
                 <div>AI 3</div>
                 <div class="opponent-hand" id="ai3-hand"></div>
             </div>
@@ -154,8 +189,14 @@
         let selectedCards = [];
         let passes = 0;
 
+        // 音效
+        const startSound = new Audio('start.mp3');
+        const passSound = new Audio('pass.mp3');
+        const playSound = new Audio('po.mp3');
+
         // 初始化遊戲
         function initGame() {
+            startSound.play().catch(e => console.log('Start sound error:', e));
             deck = [];
             for (let suit of suits) {
                 for (let rank of ranks) {
@@ -168,7 +209,7 @@
                 hands[i % 4].push(deck[i]);
             }
             hands.forEach(hand => hand.sort(compareCards));
-            currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♦'));
+            currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♣'));
             tableCards = [];
             lastPlayed = null;
             selectedCards = [];
@@ -193,6 +234,11 @@
             hands[0].forEach((card, index) => {
                 const cardDiv = document.createElement('div');
                 cardDiv.classList.add('card');
+                if (['♥', '♦'].includes(card.suit)) {
+                    cardDiv.classList.add('red');
+                } else {
+                    cardDiv.classList.add('black');
+                }
                 if (selectedCards.includes(index)) {
                     cardDiv.classList.add('selected');
                 }
@@ -218,6 +264,11 @@
             tableCards.forEach(card => {
                 const cardDiv = document.createElement('div');
                 cardDiv.classList.add('card');
+                if (['♥', '♦'].includes(card.suit)) {
+                    cardDiv.classList.add('red');
+                } else {
+                    cardDiv.classList.add('black');
+                }
                 cardDiv.textContent = `${card.suit}${card.rank}`;
                 tableDiv.appendChild(cardDiv);
             });
@@ -230,8 +281,8 @@
         function updateStatus() {
             const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
             if (hands.some(hand => hand.length === 0)) {
-                calculateScores();
-                document.getElementById('status').textContent = `回合結束！${names[hands.findIndex(hand => hand.length === 0)]} 獲勝！`;
+                calculate sufferers();
+                document.getElementById('status').textContent = `回合結束！${names[hands.findIndex(hand 手牌.length === 0)]} 獲勝！`;
             } else {
                 document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}`;
             }
@@ -276,12 +327,13 @@
                 updateUI();
                 return;
             }
-            if (!lastPlayed && cards.length > 0 && !cards.some(card => card.rank === '3' && card.suit === '♦')) {
-                alert('第一輪必須包含♦3！');
+            if (!lastPlayed && cards.length > 0 && !cards.some(card => card.rank === '3' && card.suit === '♣')) {
+                alert('第一輪必須包含♣3！');
                 selectedCards = [];
                 updateUI();
                 return;
             }
+            playSound.play().catch(e => console.log('Play sound error:', e));
             tableCards = cards;
             lastPlayed = combo;
             selectedCards.sort((a, b) => b - a);
@@ -296,6 +348,7 @@
         // 過牌
         function pass() {
             if (currentPlayer !== 0) return;
+            passSound.play().catch(e => console.log('Pass sound error:', e));
             passes++;
             if (passes >= 3) {
                 tableCards = [];
@@ -323,9 +376,9 @@
         function aiPlay() {
             const hand = hands[currentPlayer];
             if (!lastPlayed) {
-                // 包含♦3的出牌
-                let cards = hand.filter(card => card.rank === '3' && card.suit === '♦');
+                let cards = hand.filter(card => card.rank === '3' && card.suit === '♣');
                 if (cards.length > 0) {
+                    playSound.play().catch(e => console.log('Play sound error:', e));
                     tableCards = cards;
                     lastPlayed = getCombination(cards);
                     hands[currentPlayer] = hand.filter(card => !cards.includes(card));
@@ -334,7 +387,6 @@
                     return;
                 }
             }
-            // 簡單策略：嘗試出最小的合法組合
             const combos = getAllCombinations(hand);
             let validCombo = null;
             for (let combo of combos) {
@@ -344,11 +396,13 @@
                 }
             }
             if (validCombo) {
+                playSound.play().catch(e => console.log('Play sound error:', e));
                 tableCards = validCombo.cards;
                 lastPlayed = validCombo;
                 hands[currentPlayer] = hand.filter(card => !validCombo.cards.includes(card));
                 passes = 0;
             } else {
+                passSound.play().catch(e => console.log('Pass sound error:', e));
                 passes++;
                 if (passes >= 3) {
                     tableCards = [];
@@ -399,21 +453,17 @@
         // 獲取所有可能組合
         function getAllCombinations(hand) {
             let combos = [];
-            // 單張
             hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.rank], suit: suitOrder[card.suit], cards: [card] }));
-            // 對子
             for (let i = 0; i < hand.length - 1; i++) {
                 if (hand[i].rank === hand[i + 1].rank) {
                     combos.push({ type: 'pair', value: rankOrder[hand[i].rank], suit: Math.max(suitOrder[hand[i].suit], suitOrder[hand[i + 1].suit]), cards: [hand[i], hand[i + 1]] });
                 }
             }
-            // 三條
             for (let i = 0; i < hand.length - 2; i++) {
                 if (hand[i].rank === hand[i + 1].rank && hand[i + 1].rank === hand[i + 2].rank) {
                     combos.push({ type: 'triple', value: rankOrder[hand[i].rank], cards: [hand[i], hand[i + 1], hand[i + 2]] });
                 }
             }
-            // 五張組合（簡化版）
             if (hand.length >= 5) {
                 let fiveCards = hand.slice(0, 5);
                 let combo = getCombination(fiveCards);
