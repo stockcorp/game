@@ -377,8 +377,8 @@ function isAIPiece(piece) {
 }
 
 function aiMove() {
-    if (gameOver || !aiColor) {
-        console.log('AI not moving - gameOver:', gameOver, 'aiColor:', aiColor);
+    if (gameOver) {
+        console.log('AI not moving - gameOver:', gameOver);
         aiMoving = false;
         return;
     }
@@ -457,7 +457,7 @@ function aiMove() {
                 drawBoard();
             }
             aiMoving = false;
-            console.log('AI flipped piece, firstMove:', firstMove);
+            console.log('AI flipped piece:', board[bestMove.y][bestMove.x].piece, 'firstMove:', firstMove);
         });
     } else {
         const piece = board[bestMove.fromY][bestMove.fromX].piece;
@@ -506,7 +506,24 @@ function handleMove(e) {
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
                 console.log('Player flipped piece - playerColor:', playerColor, 'aiColor:', aiColor);
-                setTimeout(aiMove, 500); // AI 執行第一步
+                
+                // 直接執行 AI 第一步翻棋
+                let aiX, aiY;
+                do {
+                    aiX = Math.floor(Math.random() * gridWidth);
+                    aiY = Math.floor(Math.random() * gridHeight);
+                } while (board[aiY][aiX].revealed || (aiX === x && aiY === y));
+                
+                board[aiY][aiX].revealed = true;
+                animatePiece(aiX, aiY, aiX, aiY, board[aiY][aiX].piece, () => {
+                    updateScoreboard();
+                    updateCapturedList();
+                    firstMove = false;
+                    currentPlayer = playerColor;
+                    document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
+                    drawBoard();
+                    console.log('AI flipped first piece:', board[aiY][aiX].piece);
+                });
             });
         }
     } else if (selectedPiece) {
