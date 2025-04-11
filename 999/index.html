@@ -236,7 +236,7 @@
         // 卡牌定義
         const suits = ['♠', '♥', '♣', '♦'];
         const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
-        const suitOrder = { '♠': 4, '♥': 3, '♣': 2, '♦': 1 };
+        const suitOrder = { '♠': 4, '♥': 3, '♦': 2, '♣': 1 }; // 黑桃 > 紅心 > 方塊 > 梅花
         const rankOrder = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6, '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11, 'A': 12, '2': 13 };
 
         // 遊戲狀態
@@ -607,8 +607,7 @@
                 'fourOfAKind': fourOfAKindSound,
                 'fullHouse': fullHouseSound
             };
-            const sound = sounds[type] || singleSound;
-            sound.play().catch(e => console.log(`Sound error (${type}):`, e));
+            sounds[type].play().catch(e => console.log(`Sound error (${type}):`, e));
         }
 
         // 卡牌滑動與翻轉動畫
