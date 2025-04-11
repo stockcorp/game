@@ -21,6 +21,7 @@
             gap: 20px;
             position: relative;
             width: 900px;
+            min-height: 600px;
         }
         #table {
             display: flex;
@@ -31,6 +32,7 @@
             background-color: #4CAF50;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            position: relative;
         }
         #table-cards {
             display: flex;
@@ -38,6 +40,7 @@
             gap: 5px;
             justify-content: center;
             align-items: center;
+            min-height: 84px;
         }
         .card {
             width: 60px;
@@ -62,6 +65,13 @@
             border: 2px solid #ff0;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
             transform: translateY(-15px);
+        }
+        .card.animate {
+            animation: slideToTable 0.5s ease-out forwards;
+        }
+        @keyframes slideToTable {
+            from { transform: translate(0, 0); opacity: 1; }
+            to { transform: translate(0, 0); opacity: 1; }
         }
         #player-hand {
             display: flex;
@@ -210,6 +220,7 @@
             }
             hands.forEach(hand => hand.sort(compareCards));
             currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♣'));
+            if (currentPlayer === -1) currentPlayer = 0; // 防止無♣3的情況
             tableCards = [];
             lastPlayed = null;
             selectedCards = [];
@@ -228,61 +239,63 @@
 
         // 更新界面
         function updateUI() {
-            // 玩家手牌
-            const playerHand = document.getElementById('player-hand');
-            playerHand.innerHTML = '';
-            hands[0].forEach((card, index) => {
-                const cardDiv = document.createElement('div');
-                cardDiv.classList.add('card');
-                if (['♥', '♦'].includes(card.suit)) {
-                    cardDiv.classList.add('red');
-                } else {
-                    cardDiv.classList.add('black');
+            try {
+                // 玩家手牌
+                const playerHand = document.getElementById('player-hand');
+                playerHand.innerHTML = '';
+                if (hands[0] && Array.isArray(hands[0])) {
+                    hands[0].forEach((card, index) => {
+                        const cardDiv = document.createElement('div');
+                        cardDiv.classList.add('card');
+                        cardDiv.classList.add(['♥', '♦'].includes(card.suit) ? 'red' : 'black');
+                        if (selectedCards.includes(index)) {
+                            cardDiv.classList.add('selected');
+                        }
+                        cardDiv.textContent = `${card.suit}${card.rank}`;
+                        cardDiv.onclick = () => toggleCardSelection(index);
+                        playerHand.appendChild(cardDiv);
+                    });
                 }
-                if (selectedCards.includes(index)) {
-                    cardDiv.classList.add('selected');
-                }
-                cardDiv.textContent = `${card.suit}${card.rank}`;
-                cardDiv.onclick = () => toggleCardSelection(index);
-                playerHand.appendChild(cardDiv);
-            });
 
-            // AI手牌
-            for (let i = 1; i <= 3; i++) {
-                const aiHand = document.getElementById(`ai${i}-hand`);
-                aiHand.innerHTML = '';
-                for (let j = 0; j < hands[i].length; j++) {
-                    const cardDiv = document.createElement('div');
-                    cardDiv.classList.add('opponent-card');
-                    aiHand.appendChild(cardDiv);
+                // AI手牌
+                for (let i = 1; i <= 3; i++) {
+                    const aiHand = document.getElementById(`ai${i}-hand`);
+                    aiHand.innerHTML = '';
+                    if (hands[i] && Array.isArray(hands[i])) {
+                        for (let j = 0; j < hands[i].length; j++) {
+                            const cardDiv = document.createElement('div');
+                            cardDiv.classList.add('opponent-card');
+                            aiHand.appendChild(cardDiv);
+                        }
+                    }
                 }
+
+                // 桌面卡牌
+                const tableDiv = document.getElementById('table-cards');
+                tableDiv.innerHTML = '';
+                if (tableCards && Array.isArray(tableCards)) {
+                    tableCards.forEach(card => {
+                        const cardDiv = document.createElement('div');
+                        cardDiv.classList.add('card');
+                        cardDiv.classList.add(['♥', '♦'].includes(card.suit) ? 'red' : 'black');
+                        cardDiv.textContent = `${card.suit}${card.rank}`;
+                        tableDiv.appendChild(cardDiv);
+                    });
+                }
+
+                // 分數
+                document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI 1: ${scores[1]} | AI 2: ${scores[2]} | AI 3: ${scores[3]}`;
+            } catch (e) {
+                console.error('Update UI error:', e);
             }
-
-            // 桌面卡牌
-            const tableDiv = document.getElementById('table-cards');
-            tableDiv.innerHTML = '';
-            tableCards.forEach(card => {
-                const cardDiv = document.createElement('div');
-                cardDiv.classList.add('card');
-                if (['♥', '♦'].includes(card.suit)) {
-                    cardDiv.classList.add('red');
-                } else {
-                    cardDiv.classList.add('black');
-                }
-                cardDiv.textContent = `${card.suit}${card.rank}`;
-                tableDiv.appendChild(cardDiv);
-            });
-
-            // 分數
-            document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI 1: ${scores[1]} | AI 2: ${scores[2]} | AI 3: ${scores[3]}`;
         }
 
         // 更新狀態
         function updateStatus() {
             const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
-            if (hands.some(hand => hand.length === 0)) {
-                calculate sufferers();
-                document.getElementById('status').textContent = `回合結束！${names[hands.findIndex(hand 手牌.length === 0)]} 獲勝！`;
+            if (hands.some(hand => hand && hand.length === 0)) {
+                calculateScores();
+                document.getElementById('status').textContent = `回合結束！${names[hands.findIndex(hand => hand && hand.length === 0)]} 獲勝！`;
             } else {
                 document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}`;
             }
@@ -334,8 +347,7 @@
                 return;
             }
             playSound.play().catch(e => console.log('Play sound error:', e));
-            tableCards = cards;
-            lastPlayed = combo;
+            animateCards(cards, 'player');
             selectedCards.sort((a, b) => b - a);
             for (let i of selectedCards) {
                 hands[0].splice(i, 1);
@@ -363,7 +375,7 @@
             currentPlayer = (currentPlayer + 1) % 4;
             updateUI();
             updateStatus();
-            if (hands[currentPlayer].length === 0) {
+            if (hands[currentPlayer] && hands[currentPlayer].length === 0) {
                 calculateScores();
                 return;
             }
@@ -375,10 +387,12 @@
         // AI出牌
         function aiPlay() {
             const hand = hands[currentPlayer];
+            if (!hand) return;
             if (!lastPlayed) {
                 let cards = hand.filter(card => card.rank === '3' && card.suit === '♣');
                 if (cards.length > 0) {
                     playSound.play().catch(e => console.log('Play sound error:', e));
+                    animateCards(cards, `ai${currentPlayer}`);
                     tableCards = cards;
                     lastPlayed = getCombination(cards);
                     hands[currentPlayer] = hand.filter(card => !cards.includes(card));
@@ -397,6 +411,7 @@
             }
             if (validCombo) {
                 playSound.play().catch(e => console.log('Play sound error:', e));
+                animateCards(validCombo.cards, `ai${currentPlayer}`);
                 tableCards = validCombo.cards;
                 lastPlayed = validCombo;
                 hands[currentPlayer] = hand.filter(card => !validCombo.cards.includes(card));
@@ -411,6 +426,44 @@
                 }
             }
             nextPlayer();
+        }
+
+        // 卡牌滑動動畫
+        function animateCards(cards, source) {
+            const tableDiv = document.getElementById('table-cards');
+            tableDiv.innerHTML = '';
+            cards.forEach(card => {
+                const cardDiv = document.createElement('div');
+                cardDiv.classList.add('card', ['♥', '♦'].includes(card.suit) ? 'red' : 'black', 'animate');
+                cardDiv.textContent = `${card.suit}${card.rank}`;
+                // 根據來源設置初始位置
+                let startX = 0, startY = 0;
+                if (source === 'player') {
+                    startX = 0;
+                    startY = 200; // 從下方（玩家手牌）
+                } else if (source === 'ai1') {
+                    startX = 0;
+                    startY = -200; // 從上方（AI1）
+                } else if (source === 'ai2') {
+                    startX = 300; // 從右側（AI2）
+                    startY = 0;
+                } else if (source === 'ai3') {
+                    startX = -300; // 從左側（AI3）
+                    startY = 0;
+                }
+                cardDiv.style.transform = `translate(${startX}px, ${startY}px)`;
+                tableDiv.appendChild(cardDiv);
+                // 觸發滑動到中心
+                setTimeout(() => {
+                    cardDiv.style.transform = 'translate(0, 0)';
+                    cardDiv.classList.remove('animate');
+                }, 50);
+            });
+            // 更新tableCards
+            setTimeout(() => {
+                tableCards = cards;
+                updateUI();
+            }, 500);
         }
 
         // 獲取卡牌組合
@@ -509,11 +562,11 @@
 
         // 計算得分
         function calculateScores() {
-            let winner = hands.findIndex(hand => hand.length === 0);
+            let winner = hands.findIndex(hand => hand && hand.length === 0);
             if (winner === -1) return;
             let points = 0;
             hands.forEach((hand, index) => {
-                if (index !== winner) {
+                if (index !== winner && hand) {
                     let count = hand.length;
                     let penalty = count <= 9 ? count : count <= 12 ? count * 2 : count * 3;
                     points += penalty;
