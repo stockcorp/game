@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTML5 西洋棋遊戲 - 增強版</title>
+    <title>大老二 - 玩家 vs 3 AI</title>
     <style>
         body {
             display: flex;
@@ -16,60 +16,78 @@
         }
         #game-container {
             display: flex;
+            flex-direction: column;
+            align-items: center;
             gap: 20px;
         }
-        #chessboard {
-            display: grid;
-            grid-template-columns: repeat(8, 60px);
-            grid-template-rows: repeat(8, 60px);
-            border: 2px solid #333;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-        }
-        .square {
-            width: 60px;
-            height: 60px;
+        #table {
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 32px;
+            width: 400px;
+            height: 200px;
+            background-color: #4CAF50;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        #table-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            align-items: center;
+        }
+        .card {
+            width: 50px;
+            height: 70px;
+            background-color: white;
+            border: 1px solid #333;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
             cursor: pointer;
         }
-        .white {
-            background-color: #fff;
+        .card.selected {
+            border: 2px solid #ff0;
+            transform: translateY(-10px);
         }
-        .black {
-            background-color: #769656;
+        #player-hand {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            max-width: 600px;
         }
-        .selected {
-            background-color: #ffff99 !important;
+        #opponents {
+            display: flex;
+            justify-content: space-between;
+            width: 600px;
         }
-        .highlight {
-            background-color: #aaffaa !important;
-        }
-        #sidebar {
+        .opponent {
             display: flex;
             flex-direction: column;
+            align-items: center;
             gap: 10px;
         }
-        #status {
-            font-size: 18px;
-            color: #333;
+        .opponent-hand {
+            display: flex;
+            gap: 5px;
         }
-        #move-history {
-            width: 200px;
-            height: 300px;
-            overflow-y: auto;
-            background-color: #fff;
+        .opponent-card {
+            width: 30px;
+            height: 40px;
+            background-color: #ccc;
             border: 1px solid #333;
-            padding: 10px;
-            font-size: 14px;
+            border-radius: 5px;
         }
-        #timer {
-            font-size: 16px;
-            color: #333;
+        #controls {
+            display: flex;
+            gap: 10px;
         }
         button {
-            padding: 10px;
+            padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
             background-color: #4CAF50;
@@ -80,486 +98,390 @@
         button:hover {
             background-color: #45a049;
         }
+        #status {
+            font-size: 18px;
+            color: #333;
+        }
+        #scores {
+            font-size: 16px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
-        <div id="chessboard"></div>
-        <div id="sidebar">
-            <div id="status">輪到白方</div>
-            <div id="timer">白方: 10:00 | 黑方: 10:00</div>
-            <div id="move-history"></div>
-            <button onclick="resetGame()">重置遊戲</button>
-            <button onclick="undoMove()">悔棋</button>
+        <div id="opponents">
+            <div class="opponent">
+                <div>AI 1</div>
+                <div class="opponent-hand" id="ai1-hand"></div>
+            </div>
+            <div class="opponent">
+                <div>AI 2</div>
+                <div class="opponent-hand" id="ai2-hand"></div>
+            </div>
+            <div class="opponent">
+                <div>AI 3</div>
+                <div class="opponent-hand" id="ai3-hand"></div>
+            </div>
         </div>
+        <div id="table">
+            <div id="table-cards"></div>
+        </div>
+        <div id="status">等待開始...</div>
+        <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
+        <div id="controls">
+            <button onclick="playCards()">出牌</button>
+            <button onclick="pass()">過牌</button>
+            <button onclick="resetGame()">重置遊戲</button>
+        </div>
+        <div id="player-hand"></div>
     </div>
 
     <script>
-        // 棋盤初始狀態
-        const initialBoard = [
-            ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
-            ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['', '', '', '', '', '', '', ''],
-            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
-            ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
-        ];
-
-        // 棋子對應的Unicode符號
-        const pieceSymbols = {
-            'P': '♙', 'p': '♟',
-            'R': '♖', 'r': '♜',
-            'N': '♘', 'n': '♞',
-            'B': '♗', 'b': '♝',
-            'Q': '♕', 'q': '♛',
-            'K': '♔', 'k': '♚'
-        };
+        // 卡牌定義
+        const suits = ['♠', '♥', '♣', '♦'];
+        const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+        const suitOrder = { '♠': 4, '♥': 3, '♣': 2, '♦': 1 };
+        const rankOrder = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6, '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11, 'A': 12, '2': 13 };
 
         // 遊戲狀態
-        let board = JSON.parse(JSON.stringify(initialBoard));
-        let selectedSquare = null;
-        let currentPlayer = 'white';
-        let moveHistory = [];
-        let boardHistory = [JSON.parse(JSON.stringify(initialBoard))];
-        let castling = { whiteKing: true, whiteRookA: true, whiteRookH: true, blackKing: true, blackRookA: true, blackRookH: true };
-        let timers = { white: 600, black: 600 };
-        let timerInterval = null;
+        let deck = [];
+        let hands = [[], [], [], []]; // 玩家, AI1, AI2, AI3
+        let tableCards = [];
+        let currentPlayer = 0;
+        let lastPlayed = null;
+        let scores = [0, 0, 0, 0];
+        let selectedCards = [];
+        let passes = 0;
 
-        // 初始化棋盤
-        const chessboard = document.getElementById('chessboard');
-        function createBoard() {
-            chessboard.innerHTML = '';
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    const square = document.createElement('div');
-                    square.classList.add('square', (row + col) % 2 === 0 ? 'white' : 'black');
-                    square.dataset.row = row;
-                    square.dataset.col = col;
-                    square.textContent = pieceSymbols[board[row][col]] || '';
-                    square.addEventListener('click', handleSquareClick);
-                    chessboard.appendChild(square);
+        // 初始化遊戲
+        function initGame() {
+            deck = [];
+            for (let suit of suits) {
+                for (let rank of ranks) {
+                    deck.push({ suit, rank });
                 }
             }
-        }
-
-        // 處理格子點擊
-        function handleSquareClick(event) {
-            const row = parseInt(event.target.dataset.row);
-            const col = parseInt(event.target.dataset.col);
-            const piece = board[row][col];
-
-            if (selectedSquare) {
-                if (isValidMove(selectedSquare.row, selectedSquare.col, row, col)) {
-                    movePiece(selectedSquare.row, selectedSquare.col, row, col);
-                    clearHighlights();
-                    selectedSquare = null;
-                    if (isCheckmate(currentPlayer === 'white' ? 'black' : 'white')) {
-                        endGame(`${currentPlayer}方勝！對方被將死。`);
-                        return;
-                    }
-                    if (isCheck(currentPlayer === 'white' ? 'black' : 'white')) {
-                        document.getElementById('status').textContent = `輪到${currentPlayer === 'white' ? '黑方' : '白方'}（將軍！）`;
-                    }
-                    switchPlayer();
-                    if (currentPlayer === 'black') {
-                        setTimeout(aiMove, 500);
-                    }
-                } else {
-                    clearHighlights();
-                    selectedSquare = null;
-                    if (piece && isPlayerPiece(piece)) {
-                        selectSquare(row, col);
-                    }
-                }
-            } else if (piece && isPlayerPiece(piece)) {
-                selectSquare(row, col);
+            deck.sort(() => Math.random() - 0.5);
+            hands = [[], [], [], []];
+            for (let i = 0; i < 52; i++) {
+                hands[i % 4].push(deck[i]);
             }
+            hands.forEach(hand => hand.sort(compareCards));
+            currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♦'));
+            tableCards = [];
+            lastPlayed = null;
+            selectedCards = [];
+            passes = 0;
+            updateUI();
+            updateStatus();
         }
 
-        // 選擇格子並高亮
-        function selectSquare(row, col) {
-            selectedSquare = { row, col };
-            const squares = document.querySelectorAll('.square');
-            squares.forEach(square => square.classList.remove('selected', 'highlight'));
-            const selected = document.querySelector(`.square[data-row="${row}"][data-col="${col}"]`);
-            selected.classList.add('selected');
-            highlightValidMoves(row, col);
+        // 比較卡牌大小
+        function compareCards(a, b) {
+            if (rankOrder[a.rank] !== rankOrder[b.rank]) {
+                return rankOrder[b.rank] - rankOrder[a.rank];
+            }
+            return suitOrder[b.suit] - suitOrder[a.suit];
         }
 
-        // 高亮可移動格子
-        function highlightValidMoves(row, col) {
-            const moves = getValidMoves(row, col);
-            moves.forEach(([r, c]) => {
-                const square = document.querySelector(`.square[data-row="${r}"][data-col="${c}"]`);
-                if (square) square.classList.add('highlight');
+        // 更新界面
+        function updateUI() {
+            // 玩家手牌
+            const playerHand = document.getElementById('player-hand');
+            playerHand.innerHTML = '';
+            hands[0].forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.classList.add('card');
+                if (selectedCards.includes(index)) {
+                    cardDiv.classList.add('selected');
+                }
+                cardDiv.textContent = `${card.suit}${card.rank}`;
+                cardDiv.onclick = () => toggleCardSelection(index);
+                playerHand.appendChild(cardDiv);
             });
-        }
 
-        // 獲取合法移動
-        function getValidMoves(row, col) {
-            const piece = board[row][col].toLowerCase();
-            const isWhite = board[row][col] === board[row][col].toUpperCase();
-            let moves = [];
-
-            if (piece === 'p') {
-                const direction = isWhite ? -1 : 1;
-                const startRow = isWhite ? 6 : 1;
-                if (isEmpty(row + direction, col)) {
-                    moves.push([row + direction, col]);
-                    if (row === startRow && isEmpty(row + 2 * direction, col)) {
-                        moves.push([row + 2 * direction, col]);
-                    }
-                }
-                if (isEnemy(row + direction, col - 1)) moves.push([row + direction, col - 1]);
-                if (isEnemy(row + direction, col + 1)) moves.push([row + direction, col + 1]);
-            } else if (piece === 'r') {
-                moves = moves.concat(getRookMoves(row, col));
-            } else if (piece === 'n') {
-                const knightMoves = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
-                knightMoves.forEach(([dr, dc]) => {
-                    const r = row + dr, c = col + dc;
-                    if (isValidSquare(r, c) && (isEmpty(r, c) || isEnemy(r, c))) moves.push([r, c]);
-                });
-            } else if (piece === 'b') {
-                moves = moves.concat(getBishopMoves(row, col));
-            } else if (piece === 'q') {
-                moves = moves.concat(getRookMoves(row, col), getBishopMoves(row, col));
-            } else if (piece === 'k') {
-                const kingMoves = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
-                kingMoves.forEach(([dr, dc]) => {
-                    const r = row + dr, c = col + dc;
-                    if (isValidSquare(r, c) && (isEmpty(r, c) || isEnemy(r, c))) moves.push([r, c]);
-                });
-                // 王車易位
-                if ((isWhite && castling.whiteKing) || (!isWhite && castling.blackKing)) {
-                    if (castling[isWhite ? 'whiteRookH' : 'blackRookH'] && board[row][5] === '' && board[row][6] === '' && !isSquareAttacked(row, 5, isWhite) && !isSquareAttacked(row, 6, isWhite)) {
-                        moves.push([row, 6]);
-                    }
-                    if (castling[isWhite ? 'whiteRookA' : 'blackRookA'] && board[row][1] === '' && board[row][2] === '' && board[row][3] === '' && !isSquareAttacked(row, 2, isWhite) && !isSquareAttacked(row, 3, isWhite)) {
-                        moves.push([row, 2]);
-                    }
+            // AI手牌
+            for (let i = 1; i <= 3; i++) {
+                const aiHand = document.getElementById(`ai${i}-hand`);
+                aiHand.innerHTML = '';
+                for (let j = 0; j < hands[i].length; j++) {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.classList.add('opponent-card');
+                    aiHand.appendChild(cardDiv);
                 }
             }
 
-            // 過濾導致己方將軍的移動
-            return moves.filter(([r, c]) => {
-                const tempBoard = JSON.parse(JSON.stringify(board));
-                tempBoard[r][c] = tempBoard[row][col];
-                tempBoard[row][col] = '';
-                return !isCheck(isWhite ? 'white' : 'black', tempBoard);
+            // 桌面卡牌
+            const tableDiv = document.getElementById('table-cards');
+            tableDiv.innerHTML = '';
+            tableCards.forEach(card => {
+                const cardDiv = document.createElement('div');
+                cardDiv.classList.add('card');
+                cardDiv.textContent = `${card.suit}${card.rank}`;
+                tableDiv.appendChild(cardDiv);
             });
+
+            // 分數
+            document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI 1: ${scores[1]} | AI 2: ${scores[2]} | AI 3: ${scores[3]}`;
         }
 
-        // 車的移動
-        function getRookMoves(row, col) {
-            const moves = [];
-            for (let r = row + 1; r < 8 && isEmptyOrEnemy(r, col); r++) {
-                moves.push([r, col]);
-                if (!isEmpty(r, col)) break;
+        // 更新狀態
+        function updateStatus() {
+            const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
+            if (hands.some(hand => hand.length === 0)) {
+                calculateScores();
+                document.getElementById('status').textContent = `回合結束！${names[hands.findIndex(hand => hand.length === 0)]} 獲勝！`;
+            } else {
+                document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}`;
             }
-            for (let r = row - 1; r >= 0 && isEmptyOrEnemy(r, col); r--) {
-                moves.push([r, col]);
-                if (!isEmpty(r, col)) break;
-            }
-            for (let c = col + 1; c < 8 && isEmptyOrEnemy(row, c); c++) {
-                moves.push([row, c]);
-                if (!isEmpty(row, c)) break;
-            }
-            for (let c = col - 1; c >= 0 && isEmptyOrEnemy(row, c); c--) {
-                moves.push([row, c]);
-                if (!isEmpty(row, c)) break;
-            }
-            return moves;
         }
 
-        // 象的移動
-        function getBishopMoves(row, col) {
-            const moves = [];
-            for (let i = 1; isEmptyOrEnemy(row + i, col + i); i++) {
-                moves.push([row + i, col + i]);
-                if (!isEmpty(row + i, col + i)) break;
+        // 選擇卡牌
+        function toggleCardSelection(index) {
+            if (currentPlayer !== 0) return;
+            const idx = selectedCards.indexOf(index);
+            if (idx === -1) {
+                selectedCards.push(index);
+            } else {
+                selectedCards.splice(idx, 1);
             }
-            for (let i = 1; isEmptyOrEnemy(row + i, col - i); i++) {
-                moves.push([row + i, col - i]);
-                if (!isEmpty(row + i, col - i)) break;
-            }
-            for (let i = 1; isEmptyOrEnemy(row - i, col + i); i++) {
-                moves.push([row - i, col + i]);
-                if (!isEmpty(row - i, col + i)) break;
-            }
-            for (let i = 1; isEmptyOrEnemy(row - i, col - i); i++) {
-                moves.push([row - i, col - i]);
-                if (!isEmpty(row - i, col - i)) break;
-            }
-            return moves;
+            updateUI();
         }
 
-        // 檢查是否為當前玩家的棋子
-        function isPlayerPiece(piece) {
-            return (currentPlayer === 'white' && piece === piece.toUpperCase()) ||
-                   (currentPlayer === 'black' && piece === piece.toLowerCase());
-        }
-
-        // 檢查格子是否為空或敵方
-        function isEmptyOrEnemy(row, col) {
-            if (!isValidSquare(row, col)) return false;
-            const piece = board[row][col];
-            if (!piece) return true;
-            return (currentPlayer === 'white' && piece === piece.toLowerCase()) ||
-                   (currentPlayer === 'black' && piece === piece.toUpperCase());
-        }
-
-        // 檢查是否為敵方
-        function isEnemy(row, col) {
-            if (!isValidSquare(row, col)) return false;
-            const piece = board[row][col];
-            if (!piece) return false;
-            return (currentPlayer === 'white' && piece === piece.toLowerCase()) ||
-                   (currentPlayer === 'black' && piece === piece.toUpperCase());
-        }
-
-        // 檢查是否為空
-        function isEmpty(row, col) {
-            if (!isValidSquare(row, col)) return false;
-            return !board[row][col];
-        }
-
-        // 檢查有效格子
-        function isValidSquare(row, col) {
-            return row >= 0 && row < 8 && col >= 0 && col < 8;
-        }
-
-        // 驗證移動
-        function isValidMove(fromRow, fromCol, toRow, toCol) {
-            const moves = getValidMoves(fromRow, fromCol);
-            return moves.some(([r, c]) => r === toRow && c === toCol);
-        }
-
-        // 移動棋子
-        function movePiece(fromRow, fromCol, toRow, toCol) {
-            const piece = board[fromRow][fromCol];
-            const moveNotation = `${piece}${String.fromCharCode(97 + fromCol)}${8 - fromRow} -> ${String.fromCharCode(97 + toCol)}${8 - toRow}`;
-            board[toRow][toCol] = piece;
-            board[fromRow][fromCol] = '';
-
-            // 處理王車易位
-            if (piece.toLowerCase() === 'k' && Math.abs(toCol - fromCol) === 2) {
-                if (toCol === 6) {
-                    board[toRow][5] = board[toRow][7];
-                    board[toRow][7] = '';
-                } else if (toCol === 2) {
-                    board[toRow][3] = board[toRow][0];
-                    board[toRow][0] = '';
-                }
-            }
-
-            // 更新王車易位狀態
-            if (piece.toLowerCase() === 'k') {
-                if (piece === 'K') castling.whiteKing = false;
-                else castling.blackKing = false;
-            }
-            if (piece.toLowerCase() === 'r') {
-                if (fromRow === 7 && fromCol === 0) castling.whiteRookA = false;
-                if (fromRow === 7 && fromCol === 7) castling.whiteRookH = false;
-                if (fromRow === 0 && fromCol === 0) castling.blackRookA = false;
-                if (fromRow === 0 && fromCol === 7) castling.blackRookH = false;
-            }
-
-            // 保存棋盤狀態
-            moveHistory.push(moveNotation);
-            boardHistory.push(JSON.parse(JSON.stringify(board)));
-            updateMoveHistory();
-            createBoard();
-        }
-
-        // AI移動（簡單隨機選擇）
-        function aiMove() {
-            const pieces = [];
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    if (board[row][col] && isPlayerPiece(board[row][col])) {
-                        const moves = getValidMoves(row, col);
-                        if (moves.length > 0) {
-                            pieces.push({ row, col, moves });
-                        }
-                    }
-                }
-            }
-            if (pieces.length === 0) {
-                endGame('白方勝！黑方無合法移動。');
+        // 出牌
+        function playCards() {
+            if (currentPlayer !== 0) return;
+            const cards = selectedCards.map(i => hands[0][i]);
+            if (cards.length === 0) {
+                alert('請選擇卡牌！');
                 return;
             }
-            const piece = pieces[Math.floor(Math.random() * pieces.length)];
-            const move = piece.moves[Math.floor(Math.random() * piece.moves.length)];
-            movePiece(piece.row, piece.col, move[0], move[1]);
-            if (isCheckmate('white')) {
-                endGame('黑方勝！白方被將死。');
+            const combo = getCombination(cards);
+            if (!combo) {
+                alert('無效組合！');
+                selectedCards = [];
+                updateUI();
                 return;
             }
-            if (isCheck('white')) {
-                document.getElementById('status').textContent = '輪到白方（將軍！）';
+            if (lastPlayed && !canBeat(combo, lastPlayed)) {
+                alert('出牌必須大於桌面上的牌！');
+                selectedCards = [];
+                updateUI();
+                return;
             }
-            switchPlayer();
+            if (lastPlayed && combo.type !== lastPlayed.type) {
+                alert('組合類型必須相同！');
+                selectedCards = [];
+                updateUI();
+                return;
+            }
+            if (!lastPlayed && cards.length > 0 && !cards.some(card => card.rank === '3' && card.suit === '♦')) {
+                alert('第一輪必須包含♦3！');
+                selectedCards = [];
+                updateUI();
+                return;
+            }
+            tableCards = cards;
+            lastPlayed = combo;
+            selectedCards.sort((a, b) => b - a);
+            for (let i of selectedCards) {
+                hands[0].splice(i, 1);
+            }
+            selectedCards = [];
+            passes = 0;
+            nextPlayer();
         }
 
-        // 檢查將軍
-        function isCheck(player, tempBoard = board) {
-            const king = player === 'white' ? 'K' : 'k';
-            let kingPos = null;
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    if (tempBoard[row][col] === king) {
-                        kingPos = [row, col];
-                        break;
-                    }
-                }
-                if (kingPos) break;
+        // 過牌
+        function pass() {
+            if (currentPlayer !== 0) return;
+            passes++;
+            if (passes >= 3) {
+                tableCards = [];
+                lastPlayed = null;
+                passes = 0;
             }
-            if (!kingPos) return false;
+            nextPlayer();
+        }
 
-            const opponent = player === 'white' ? 'black' : 'white';
-            const originalPlayer = currentPlayer;
-            currentPlayer = opponent;
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    if (tempBoard[row][col] && isPlayerPiece(tempBoard[row][col])) {
-                        const moves = getValidMoves(row, col);
-                        if (moves.some(([r, c]) => r === kingPos[0] && c === kingPos[1])) {
-                            currentPlayer = originalPlayer;
-                            return true;
-                        }
-                    }
+        // 下一個玩家
+        function nextPlayer() {
+            currentPlayer = (currentPlayer + 1) % 4;
+            updateUI();
+            updateStatus();
+            if (hands[currentPlayer].length === 0) {
+                calculateScores();
+                return;
+            }
+            if (currentPlayer !== 0) {
+                setTimeout(aiPlay, 1000);
+            }
+        }
+
+        // AI出牌
+        function aiPlay() {
+            const hand = hands[currentPlayer];
+            if (!lastPlayed) {
+                // 包含♦3的出牌
+                let cards = hand.filter(card => card.rank === '3' && card.suit === '♦');
+                if (cards.length > 0) {
+                    tableCards = cards;
+                    lastPlayed = getCombination(cards);
+                    hands[currentPlayer] = hand.filter(card => !cards.includes(card));
+                    passes = 0;
+                    nextPlayer();
+                    return;
                 }
             }
-            currentPlayer = originalPlayer;
+            // 簡單策略：嘗試出最小的合法組合
+            const combos = getAllCombinations(hand);
+            let validCombo = null;
+            for (let combo of combos) {
+                if (!lastPlayed || (combo.type === lastPlayed.type && canBeat(combo, lastPlayed))) {
+                    validCombo = combo;
+                    break;
+                }
+            }
+            if (validCombo) {
+                tableCards = validCombo.cards;
+                lastPlayed = validCombo;
+                hands[currentPlayer] = hand.filter(card => !validCombo.cards.includes(card));
+                passes = 0;
+            } else {
+                passes++;
+                if (passes >= 3) {
+                    tableCards = [];
+                    lastPlayed = null;
+                    passes = 0;
+                }
+            }
+            nextPlayer();
+        }
+
+        // 獲取卡牌組合
+        function getCombination(cards) {
+            cards.sort(compareCards);
+            if (cards.length === 1) {
+                return { type: 'single', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards };
+            }
+            if (cards.length === 2 && cards[0].rank === cards[1].rank) {
+                return { type: 'pair', value: rankOrder[cards[0].rank], suit: Math.max(suitOrder[cards[0].suit], suitOrder[cards[1].suit]), cards };
+            }
+            if (cards.length === 3 && cards[0].rank === cards[1].rank && cards[1].rank === cards[2].rank) {
+                return { type: 'triple', value: rankOrder[cards[0].rank], cards };
+            }
+            if (cards.length === 5) {
+                if (isStraightFlush(cards)) return { type: 'straightFlush', value: rankOrder[cards[0].rank], cards };
+                if (isFourOfAKind(cards)) return { type: 'fourOfAKind', value: rankOrder[cards[1].rank], cards };
+                if (isFullHouse(cards)) return { type: 'fullHouse', value: rankOrder[cards[2].rank], cards };
+                if (isFlush(cards)) return { type: 'flush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards };
+                if (isStraight(cards)) return { type: 'straight', value: rankOrder[cards[0].rank], cards };
+            }
+            return null;
+        }
+
+        // 檢查是否能打敗
+        function canBeat(newCombo, oldCombo) {
+            if (newCombo.type !== oldCombo.type) return false;
+            if (['single', 'pair', 'flush'].includes(newCombo.type)) {
+                if (newCombo.value !== oldCombo.value) {
+                    return newCombo.value > oldCombo.value;
+                }
+                return newCombo.suit > oldCombo.suit;
+            }
+            if (['straightFlush', 'fourOfAKind', 'fullHouse', 'straight', 'triple'].includes(newCombo.type)) {
+                return newCombo.value > oldCombo.value;
+            }
             return false;
         }
 
-        // 檢查將死
-        function isCheckmate(player) {
-            if (!isCheck(player)) return false;
-            const originalPlayer = currentPlayer;
-            currentPlayer = player;
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    if (board[row][col] && isPlayerPiece(board[row][col])) {
-                        const moves = getValidMoves(row, col);
-                        if (moves.length > 0) {
-                            currentPlayer = originalPlayer;
-                            return false;
-                        }
-                    }
+        // 獲取所有可能組合
+        function getAllCombinations(hand) {
+            let combos = [];
+            // 單張
+            hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.rank], suit: suitOrder[card.suit], cards: [card] }));
+            // 對子
+            for (let i = 0; i < hand.length - 1; i++) {
+                if (hand[i].rank === hand[i + 1].rank) {
+                    combos.push({ type: 'pair', value: rankOrder[hand[i].rank], suit: Math.max(suitOrder[hand[i].suit], suitOrder[hand[i + 1].suit]), cards: [hand[i], hand[i + 1]] });
                 }
             }
-            currentPlayer = originalPlayer;
+            // 三條
+            for (let i = 0; i < hand.length - 2; i++) {
+                if (hand[i].rank === hand[i + 1].rank && hand[i + 1].rank === hand[i + 2].rank) {
+                    combos.push({ type: 'triple', value: rankOrder[hand[i].rank], cards: [hand[i], hand[i + 1], hand[i + 2]] });
+                }
+            }
+            // 五張組合（簡化版）
+            if (hand.length >= 5) {
+                let fiveCards = hand.slice(0, 5);
+                let combo = getCombination(fiveCards);
+                if (combo) combos.push(combo);
+            }
+            return combos.sort((a, b) => {
+                if (a.value !== b.value) return a.value - b.value;
+                if (a.suit && b.suit) return a.suit - b.suit;
+                return 0;
+            });
+        }
+
+        // 五張牌組合檢查
+        function isStraight(cards) {
+            let values = cards.map(card => rankOrder[card.rank]).sort((a, b) => b - a);
+            for (let i = 1; i < values.length; i++) {
+                if (values[i - 1] - values[i] !== 1) return false;
+            }
             return true;
         }
 
-        // 檢查格子是否被攻擊
-        function isSquareAttacked(row, col, isWhite) {
-            const opponent = isWhite ? 'black' : 'white';
-            const originalPlayer = currentPlayer;
-            currentPlayer = opponent;
-            for (let r = 0; r < 8; r++) {
-                for (let c = 0; c < 8; c++) {
-                    if (board[r][c] && isPlayerPiece(board[r][c])) {
-                        const moves = getValidMoves(r, c);
-                        if (moves.some(([mr, mc]) => mr === row && mc === col)) {
-                            currentPlayer = originalPlayer;
-                            return true;
-                        }
-                    }
+        function isFlush(cards) {
+            return cards.every(card => card.suit === cards[0].suit);
+        }
+
+        function isFullHouse(cards) {
+            let ranks = cards.map(card => card.rank);
+            let counts = {};
+            ranks.forEach(rank => counts[rank] = (counts[rank] || 0) + 1);
+            return Object.values(counts).sort().join('') === '23';
+        }
+
+        function isFourOfAKind(cards) {
+            let ranks = cards.map(card => card.rank);
+            let counts = {};
+            ranks.forEach(rank => counts[rank] = (counts[rank] || 0) + 1);
+            return Object.values(counts).includes(4);
+        }
+
+        function isStraightFlush(cards) {
+            return isStraight(cards) && isFlush(cards);
+        }
+
+        // 計算得分
+        function calculateScores() {
+            let winner = hands.findIndex(hand => hand.length === 0);
+            if (winner === -1) return;
+            let points = 0;
+            hands.forEach((hand, index) => {
+                if (index !== winner) {
+                    let count = hand.length;
+                    let penalty = count <= 9 ? count : count <= 12 ? count * 2 : count * 3;
+                    points += penalty;
                 }
-            }
-            currentPlayer = originalPlayer;
-            return false;
-        }
-
-        // 切換玩家
-        function switchPlayer() {
-            currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
-            document.getElementById('status').textContent = `輪到${currentPlayer === 'white' ? '白方' : '黑方'}`;
-        }
-
-        // 更新移動歷史
-        function updateMoveHistory() {
-            const historyDiv = document.getElementById('move-history');
-            historyDiv.innerHTML = moveHistory.map((move, i) => `${i + 1}. ${move}`).join('<br>');
-            historyDiv.scrollTop = historyDiv.scrollHeight;
-        }
-
-        // 計時器
-        function startTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                timers[currentPlayer]--;
-                if (timers[currentPlayer] <= 0) {
-                    endGame(`${currentPlayer === 'white' ? '黑方' : '白方'}勝！${currentPlayer}方時間用盡。`);
-                }
-                updateTimer();
-            }, 1000);
-        }
-
-        function updateTimer() {
-            const whiteTime = formatTime(timers.white);
-            const blackTime = formatTime(timers.black);
-            document.getElementById('timer').textContent = `白方: ${whiteTime} | 黑方: ${blackTime}`;
-        }
-
-        function formatTime(seconds) {
-            const min = Math.floor(seconds / 60);
-            const sec = seconds % 60;
-            return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-        }
-
-        // 結束遊戲
-        function endGame(message) {
-            clearInterval(timerInterval);
-            document.getElementById('status').textContent = message;
-            chessboard.removeEventListener('click', handleSquareClick);
+            });
+            scores[winner] += points;
+            updateUI();
+            updateStatus();
         }
 
         // 重置遊戲
         function resetGame() {
-            board = JSON.parse(JSON.stringify(initialBoard));
-            currentPlayer = 'white';
-            selectedSquare = null;
-            moveHistory = [];
-            boardHistory = [JSON.parse(JSON.stringify(initialBoard))];
-            castling = { whiteKing: true, whiteRookA: true, whiteRookH: true, blackKing: true, blackRookA: true, blackRookH: true };
-            timers = { white: 600, black: 600 };
-            clearInterval(timerInterval);
-            createBoard();
-            updateMoveHistory();
-            updateTimer();
-            document.getElementById('status').textContent = '輪到白方';
-            startTimer();
-        }
-
-        // 悔棋
-        function undoMove() {
-            if (boardHistory.length <= 1) return;
-            boardHistory.pop();
-            board = JSON.parse(JSON.stringify(boardHistory[boardHistory.length - 1]));
-            moveHistory.pop();
-            currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
-            selectedSquare = null;
-            createBoard();
-            updateMoveHistory();
-            document.getElementById('status').textContent = `輪到${currentPlayer === 'white' ? '白方' : '黑方'}`;
-        }
-
-        // 清除高亮
-        function clearHighlights() {
-            const squares = document.querySelectorAll('.square');
-            squares.forEach(square => square.classList.remove('selected', 'highlight'));
+            scores = [0, 0, 0, 0];
+            initGame();
         }
 
         // 初始化遊戲
-        createBoard();
-        startTimer();
+        initGame();
     </script>
 </body>
 </html>
