@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML5 西洋棋遊戲</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 2px solid #333;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            cursor: pointer;
+        }
+        .white {
+            background-color: #fff;
+        }
+        .black {
+            background-color: #769656;
+        }
+        .selected {
+            background-color: #ffff99 !important;
+        }
+        .highlight {
+            background-color: #aaffaa !important;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="chessboard"></div>
+    <div id="status">輪到白方</div>
+
+    <script>
+        // 棋盤初始狀態（使用標準西洋棋開局）
+        const initialBoard = [
+            ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+            ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+            ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+        ];
+
+        // 棋子對應的Unicode符號
+        const pieceSymbols = {
+            'P': '♙', 'p': '♟', // 兵
+            'R': '♖', 'r': '♜', // 車
+            'N': '♘', 'n': '♞', // 馬
+            'B': '♗', 'b': '♝', // 象
+            'Q': '♕', 'q': '♛', // 后
+            'K': '♔', 'k': '♚'  // 王
+        };
+
+        // 當前棋盤狀態
+        let board = JSON.parse(JSON.stringify(initialBoard));
+        let selectedSquare = null;
+        let currentPlayer = 'white'; // 當前玩家
+
+        // 初始化棋盤
+        const chessboard = document.getElementById('chessboard');
+        function createBoard() {
+            chessboard.innerHTML = '';
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const square = document.createElement('div');
+                    square.classList.add('square');
+                    square.classList.add((row + col) % 2 === 0 ? 'white' : 'black');
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+                    square.textContent = pieceSymbols[board[row][col]] || '';
+                    square.addEventListener('click', handleSquareClick);
+                    chessboard.appendChild(square);
+                }
+            }
+        }
+
+        // 處理格子點擊
+        function handleSquareClick(event) {
+            const row = parseInt(event.target.dataset.row);
+            const col = parseInt(event.target.dataset.col);
+            const piece = board[row][col];
+
+            if (selectedSquare) {
+                // 已有選擇的格子，嘗試移動
+                if (isValidMove(selectedSquare.row, selectedSquare.col, row, col)) {
+                    movePiece(selectedSquare.row, selectedSquare.col, row, col);
+                    clearHighlights();
+                    selectedSquare = null;
+                    switchPlayer();
+                } else {
+                    // 無效移動，取消選擇
+                    clearHighlights();
+                    selectedSquare = null;
+                    if (piece && isPlayerPiece(piece)) {
+                        selectSquare(row, col);
+                    }
+                }
+            } else if (piece && isPlayerPiece(piece)) {
+                // 選擇一個有棋子的格子
+                selectSquare(row, col);
+            }
+        }
+
+        // 選擇格子並高亮顯示
+        function selectSquare(row, col) {
+            selectedSquare = { row, col };
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(square => square.classList.remove('selected', 'highlight'));
+            const selected = document.querySelector(`.square[data-row="${row}"][data-col="${col}"]`);
+            selected.classList.add('selected');
+            highlightValidMoves(row, col);
+        }
+
+        // 高亮可移動的格子（簡化版）
+        function highlightValidMoves(row, col) {
+            const piece = board[row][col].toLowerCase();
+            const moves = [];
+
+            // 簡單規則：兵向前一格，車直線，馬L形，等等
+            if (piece === 'p') {
+                const direction = board[row][col] === 'P' ? -1 : 1;
+                if (isEmpty(row + direction, col)) {
+                    moves.push([row + direction, col]);
+                }
+            } else if (piece === 'r') {
+                // 車：檢查四個方向
+                for (let r = row + 1; r < 8 && isEmptyOrEnemy(r, col); r++) moves.push([r, col]);
+                for (let r = row - 1; r >= 0 && isEmptyOrEnemy(r, col); r--) moves.push([r, col]);
+                for (let c = col + 1; c < 8 && isEmptyOrEnemy(row, c); c++) moves.push([row, c]);
+                for (let c = col - 1; c >= 0 && isEmptyOrEnemy(row, c); c--) moves.push([row, c]);
+            }
+            // 可根據需要添加其他棋子規則
+
+            moves.forEach(([r, c]) => {
+                const square = document.querySelector(`.square[data-row="${r}"][data-col="${c}"]`);
+                if (square) square.classList.add('highlight');
+            });
+        }
+
+        // 檢查是否為當前玩家的棋子
+        function isPlayerPiece(piece) {
+            return (currentPlayer === 'white' && piece === piece.toUpperCase()) ||
+                   (currentPlayer === 'black' && piece === piece.toLowerCase());
+        }
+
+        // 檢查格子是否為空或敵方棋子
+        function isEmptyOrEnemy(row, col) {
+            if (row < 0 || row >= 8 || col < 0 || col >= 8) return false;
+            const piece = board[row][col];
+            if (!piece) return true;
+            return (currentPlayer === 'white' && piece === piece.toLowerCase()) ||
+                   (currentPlayer === 'black' && piece === piece.toUpperCase());
+        }
+
+        // 檢查是否為空
+        function isEmpty(row, col) {
+            if (row < 0 || row >= 8 || col < 0 || col >= 8) return false;
+            return !board[row][col];
+        }
+
+        // 簡單驗證移動（這裡僅實現基本邏輯）
+        function isValidMove(fromRow, fromCol, toRow, toCol) {
+            const piece = board[fromRow][fromCol].toLowerCase();
+            const deltaRow = toRow - fromRow;
+            const deltaCol = toCol - fromCol;
+
+            // 兵的移動
+            if (piece === 'p') {
+                const direction = board[fromRow][fromCol] === 'P' ? -1 : 1;
+                if (fromCol === toCol && deltaRow === direction && isEmpty(toRow, toCol)) {
+                    return true;
+                }
+                // 可添加吃子邏輯
+            }
+            // 車的移動
+            else if (piece === 'r') {
+                if (fromRow === toRow || fromCol === toCol) {
+                    const stepRow = fromRow === toRow ? 0 : (toRow > fromRow ? 1 : -1);
+                    const stepCol = fromCol === toCol ? 0 : (toCol > fromCol ? 1 : -1);
+                    let r = fromRow + stepRow;
+                    let c = fromCol + stepCol;
+                    while (r !== toRow || c !== toCol) {
+                        if (!isEmpty(r, c)) return false;
+                        r += stepRow;
+                        c += stepCol;
+                    }
+                    return isEmptyOrEnemy(toRow, toCol);
+                }
+            }
+            // 可根據需要添加其他棋子規則
+
+            return false;
+        }
+
+        // 移動棋子
+        function movePiece(fromRow, fromCol, toRow, toCol) {
+            board[toRow][toCol] = board[fromRow][fromCol];
+            board[fromRow][fromCol] = '';
+            createBoard();
+        }
+
+        // 切換玩家
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 'white' ? 'black' : 'white';
+            document.getElementById('status').textContent = `輪到${currentPlayer === 'white' ? '白方' : '黑方'}`;
+        }
+
+        // 清除高亮
+        function clearHighlights() {
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(square => square.classList.remove('selected', 'highlight'));
+        }
+
+        // 初始化遊戲
+        createBoard();
+    </script>
+</body>
+</html>
