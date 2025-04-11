@@ -143,9 +143,8 @@ h1 {
 }
 
 #current-player.white {
-    background: #ffffff;
-    border-color: #d9d9d9;
-    color: #4a2c00;
+    background: #e74c3c;
+    border-color: #c0392b;
 }
 
 #current-player.black, #ai-player {
@@ -219,7 +218,6 @@ h1 {
 }
 
 #chess-board {
-    background: #f0d9b5;
     border: 10px solid #8b5a2b;
     border-radius: 15px;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
