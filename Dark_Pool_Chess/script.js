@@ -2,7 +2,7 @@ const canvas = document.getElementById('dark-pool-board');
 const ctx = canvas.getContext('2d');
 const gridWidth = 8, gridHeight = 4;
 let cellWidth, cellHeight, board = [];
-let currentPlayer = 'red'; // 初始為紅方，翻棋後確定陣營
+let currentPlayer = 'red'; // 玩家初始為紅方，翻棋後確定陣營
 let playerColor = null, aiColor = null;
 let redScore = 16, blackScore = 16;
 const stoneSound = document.getElementById('stone-sound');
@@ -10,22 +10,17 @@ let selectedPiece = null, gameOver = false;
 let redCaptured = [], blackCaptured = [];
 let difficulty = 'easy';
 const EASY_DEPTH = 3, HARD_DEPTH = 4;
-let firstMove = true; // true 表示玩家第一步，false 表示遊戲進入輪流階段
-let aiMoving = false;
+let firstMove = true;
+let aiMoving = false; // 防止 AI 重複行動
 
 function resizeCanvas() {
-    try {
-        const containerWidth = document.querySelector('.board-section').offsetWidth || 480;
-        const maxWidth = Math.min(containerWidth, 480);
-        canvas.width = maxWidth;
-        canvas.height = maxWidth / 2;
-        cellWidth = canvas.width / gridWidth;
-        cellHeight = canvas.height / gridHeight;
-        drawBoard();
-        console.log('Canvas resized:', canvas.width, canvas.height);
-    } catch (error) {
-        console.error('Resize canvas failed:', error);
-    }
+    const containerWidth = document.querySelector('.board-section').offsetWidth;
+    const maxWidth = Math.min(containerWidth, 480);
+    canvas.width = maxWidth;
+    canvas.height = maxWidth / 2;
+    cellWidth = canvas.width / gridWidth;
+    cellHeight = canvas.height / gridHeight;
+    drawBoard();
 }
 
 function initializeBoard() {
@@ -41,8 +36,8 @@ function initializeBoard() {
             board[y][x] = { piece: pieces[index++], revealed: false };
         }
     }
-    console.log('Board initialized - Red King:', board.flat().some(cell => cell && cell.piece === 'K'));
-    console.log('Board initialized - Black King:', board.flat().some(cell => cell && cell.piece === 'k'));
+    console.log('初始化完成 - 紅方將:', board.flat().some(cell => cell && cell.piece === 'K'));
+    console.log('初始化完成 - 黑方帥:', board.flat().some(cell => cell && cell.piece === 'k'));
     
     redScore = 16;
     blackScore = 16;
@@ -71,47 +66,42 @@ function shuffleArray(array) {
 
 function checkAudio() {
     if (!stoneSound) {
-        console.error('Audio element not found, check <audio id="stone-sound"> in HTML');
+        console.error('音效元素未找到，請檢查 HTML 中的 <audio id="stone-sound">');
         return;
     }
     stoneSound.load();
-    stoneSound.onerror = () => console.error('Audio file failed to load, check ../img/stone-drop.mp3 path');
+    stoneSound.onerror = () => console.error('音效檔案載入失敗，請確認 ../img/stone-drop.mp3 路徑正確');
 }
 
 function drawBoard() {
-    try {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#f0d9b5';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = '#4a2c00';
-        ctx.lineWidth = 1;
-        for (let x = 0; x <= gridWidth; x++) {
-            ctx.beginPath();
-            ctx.moveTo(x * cellWidth, 0);
-            ctx.lineTo(x * cellWidth, canvas.height);
-            ctx.stroke();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f0d9b5';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#4a2c00';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= gridWidth; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * cellWidth, 0);
+        ctx.lineTo(x * cellWidth, canvas.height);
+        ctx.stroke();
+    }
+    for (let y = 0; y <= gridHeight; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * cellHeight);
+        ctx.lineTo(canvas.width, y * cellHeight);
+        ctx.stroke();
+    }
+    for (let y = 0; y < gridHeight; y++) {
+        for (let x = 0; x < gridWidth; x++) {
+            const { piece, revealed } = board[y][x];
+            if (revealed && piece) drawPiece(x, y, piece);
+            else if (!revealed) drawHidden(x, y);
         }
-        for (let y = 0; y <= gridHeight; y++) {
-            ctx.beginPath();
-            ctx.moveTo(0, y * cellHeight);
-            ctx.lineTo(canvas.width, y * cellHeight);
-            ctx.stroke();
-        }
-        for (let y = 0; y < gridHeight; y++) {
-            for (let x = 0; x < gridWidth; x++) {
-                const { piece, revealed } = board[y][x];
-                if (revealed && piece) drawPiece(x, y, piece);
-                else if (!revealed) drawHidden(x, y);
-            }
-        }
-        if (selectedPiece) {
-            ctx.strokeStyle = '#e74c3c';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(selectedPiece.x * cellWidth, selectedPiece.y * cellHeight, cellWidth, cellHeight);
-        }
-        console.log('Board drawn');
-    } catch (error) {
-        console.error('Draw board failed:', error);
+    }
+    if (selectedPiece) {
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(selectedPiece.x * cellWidth, selectedPiece.y * cellHeight, cellWidth, cellHeight);
     }
 }
 
@@ -142,31 +132,26 @@ function drawPiece(x, y, piece) {
 }
 
 function animatePiece(fromX, fromY, toX, toY, piece, callback) {
-    try {
-        let opacity = 0;
-        const duration = 300;
-        const startTime = performance.now();
+    let opacity = 0;
+    const duration = 300;
+    const startTime = performance.now();
 
-        function step(timestamp) {
-            const elapsed = timestamp - startTime;
-            opacity = Math.min(elapsed / duration, 1);
-            drawBoard();
-            ctx.globalAlpha = opacity;
-            drawPiece(toX, toY, piece);
-            ctx.globalAlpha = 1;
-            if (elapsed < duration) requestAnimationFrame(step);
-            else if (callback) callback();
-        }
-
-        if (stoneSound) {
-            stoneSound.currentTime = 0;
-            stoneSound.play().catch(error => console.error('Audio play failed:', error));
-        }
-        requestAnimationFrame(step);
-    } catch (error) {
-        console.error('Animation failed:', error);
-        if (callback) callback(); // 確保回調執行
+    function step(timestamp) {
+        const elapsed = timestamp - startTime;
+        opacity = Math.min(elapsed / duration, 1);
+        drawBoard();
+        ctx.globalAlpha = opacity;
+        drawPiece(toX, toY, piece);
+        ctx.globalAlpha = 1;
+        if (elapsed < duration) requestAnimationFrame(step);
+        else if (callback) callback();
     }
+
+    if (stoneSound) {
+        stoneSound.currentTime = 0;
+        stoneSound.play().catch(error => console.error('音效播放失敗:', error));
+    }
+    requestAnimationFrame(step);
 }
 
 function updateScoreboard() {
@@ -191,7 +176,7 @@ function updateDifficultyDisplay() {
 }
 
 function checkGameOver() {
-    if (firstMove) return false;
+    if (firstMove) return false; // 防止第一步檢查
     const redKingExists = board.some(row => row.some(cell => cell && cell.piece === 'K'));
     const blackKingExists = board.some(row => row.some(cell => cell && cell.piece === 'k'));
     
@@ -223,24 +208,18 @@ function isValidMove(fromX, fromY, toX, toY) {
     if (!isPlayerPiece) return false;
     
     const dx = Math.abs(toX - fromX), dy = Math.abs(toY - fromY);
-    const target = board[toY][toX] ? board[toY][toX].piece : null;
-
-    if (piece === 'P' || piece === 'p') {
-        if (dx === 0 && dy === 2) {
-            const midY = fromY + (toY > fromY ? 1 : -1);
-            return board[midY][fromX] && board[midY][fromX].piece && target && canEat(piece, target);
-        } else if (dx === 2 && dy === 0) {
-            const midX = fromX + (toX > fromX ? 1 : -1);
-            return board[fromY][midX] && board[fromY][midX].piece && target && canEat(piece, target);
-        }
-    }
-
     if (dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return false;
+
+    const target = board[toY][toX] ? board[toY][toX].piece : null;
     if (!target) return true;
     
     const isOpponentPiece = playerColor === 'red' ? /[kabnrps]/.test(target) : /[KABNRPS]/.test(target);
     if (!isOpponentPiece) return false;
 
+    if (piece === 'P' || piece === 'p') {
+        const midX = Math.floor((fromX + toX) / 2), midY = Math.floor((fromY + toY) / 2);
+        return dx === 1 && dy === 1 && board[midY] && board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
+    }
     return canEat(piece, target);
 }
 
@@ -251,30 +230,24 @@ function isValidMoveForAI(fromX, fromY, toX, toY) {
     if (!isAIPiece) return false;
     
     const dx = Math.abs(toX - fromX), dy = Math.abs(toY - fromY);
-    const target = board[toY][toX] ? board[toY][toX].piece : null;
-
-    if (piece === 'P' || piece === 'p') {
-        if (dx === 0 && dy === 2) {
-            const midY = fromY + (toY > fromY ? 1 : -1);
-            return board[midY][fromX] && board[midY][fromX].piece && target && canEat(piece, target);
-        } else if (dx === 2 && dy === 0) {
-            const midX = fromX + (toX > fromX ? 1 : -1);
-            return board[fromY][midX] && board[fromY][midX].piece && target && canEat(piece, target);
-        }
-    }
-
     if (dx > 1 || dy > 1 || (dx === 0 && dy === 0)) return false;
+
+    const target = board[toY][toX] ? board[toY][toX].piece : null;
     if (!target) return true;
     
     const isOpponentPiece = aiColor === 'red' ? /[kabnrps]/.test(target) : /[KABNRPS]/.test(target);
     if (!isOpponentPiece) return false;
 
+    if (piece === 'P' || piece === 'p') {
+        const midX = Math.floor((fromX + toX) / 2), midY = Math.floor((fromY + toY) / 2);
+        return dx === 1 && dy === 1 && board[midY] && board[midY][midX] && board[midY][midX].piece && canEat(piece, target);
+    }
     return canEat(piece, target);
 }
 
 function evaluateBoard() {
     let score = 0;
-    const values = { K: 1000, A: 6, B: 5, R: 4, N: 3, P: 2, S: 1, k: 1000, a: 6, b: 5, r: 4, n: 3, p: 2, s: 1 };
+    const values = { K: 1000, A: 2, B: 2, N: 4, R: 9, P: 4.5, S: 1, k: 1000, a: 2, b: 2, n: 4, r: 9, p: 4.5, s: 1 };
     for (let y = 0; y < gridHeight; y++) {
         for (let x = 0; x < gridWidth; x++) {
             const cell = board[y][x];
@@ -310,11 +283,18 @@ function minimax(depth, alpha, beta, maximizingPlayer) {
                                     if (aiColor === 'red') blackCaptured.push(targetPiece);
                                     else redCaptured.push(targetPiece);
                                 }
-                                board[tx][ty] = { piece: originalPiece, revealed: true };
-                                board[y][x] = { piece: null, revealed: false };
-                                const evalScore = minimax(depth - 1, alpha, beta, false);
-                                board[y][x] = { piece: originalPiece, revealed: true };
-                                board[tx][ty] = targetPiece ? { piece: targetPiece, revealed: true } : { piece: null, revealed: false };
+const fromBackup = { ...board[fromY][fromX] };
+const toBackup = { ...board[toY][toX] };
+
+// 模擬移動
+board[toY][toX] = { piece: originalPiece, revealed: true };
+board[fromY][fromX] = { piece: null, revealed: false };
+
+const evalScore = minimax(depth - 1, alpha, beta, !maximizingPlayer);
+
+// 回溯
+board[fromY][fromX] = fromBackup;
+board[toY][toX] = toBackup;
                                 if (targetPiece) {
                                     if (aiColor === 'red') blackCaptured.pop();
                                     else redCaptured.pop();
@@ -382,13 +362,12 @@ function isAIPiece(piece) {
 }
 
 function aiMove() {
-    if (gameOver) {
-        console.log('AI not moving - gameOver:', gameOver);
-        aiMoving = false;
+    if (gameOver || !aiColor || currentPlayer !== aiColor) {
+        console.log('AI 未行動 - gameOver:', gameOver, 'aiColor:', aiColor, 'currentPlayer:', currentPlayer);
         return;
     }
     aiMoving = true;
-    console.log('AI moving, firstMove:', firstMove, 'currentPlayer:', currentPlayer, 'aiColor:', aiColor);
+    console.log('AI 開始行動');
 
     const validMoves = [];
     const depth = difficulty === 'easy' ? EASY_DEPTH : HARD_DEPTH;
@@ -398,7 +377,7 @@ function aiMove() {
             const cell = board[y][x];
             if (!cell.revealed) {
                 validMoves.push({ type: 'flip', x, y });
-            } else if (!firstMove && cell.piece && isAIPiece(cell.piece)) {
+            } else if (cell.piece && isAIPiece(cell.piece)) {
                 for (let ty = 0; ty < gridHeight; ty++) {
                     for (let tx = 0; tx < gridWidth; tx++) {
                         if (isValidMoveForAI(x, y, tx, ty)) {
@@ -411,7 +390,7 @@ function aiMove() {
     }
 
     if (validMoves.length === 0) {
-        console.log('AI has no valid moves, game over');
+        console.log('AI 無合法移動，遊戲結束');
         gameOver = true;
         aiMoving = false;
         return;
@@ -455,14 +434,12 @@ function aiMove() {
         animatePiece(bestMove.x, bestMove.y, bestMove.x, bestMove.y, board[bestMove.y][bestMove.x].piece, () => {
             updateScoreboard();
             updateCapturedList();
-            if (firstMove) firstMove = false; // AI 完成第一步
-            if (!checkGameOver()) {
-                currentPlayer = playerColor;
-                document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
-                drawBoard();
-            }
-            aiMoving = false;
-            console.log('AI flipped piece:', board[bestMove.y][bestMove.x].piece, 'currentPlayer:', currentPlayer);
+if (!checkGameOver()) {
+    currentPlayer = playerColor;
+    document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
+    drawBoard();
+}
+aiMoving = false; // 保證無論如何都會執行
         });
     } else {
         const piece = board[bestMove.fromY][bestMove.fromX].piece;
@@ -481,22 +458,16 @@ function aiMove() {
                 drawBoard();
             }
             aiMoving = false;
-            console.log('AI moved piece from:', bestMove.fromX, bestMove.fromY, 'to:', bestMove.toX, bestMove.toY);
         });
     }
 }
 
 function handleMove(e) {
-    if (gameOver || aiMoving) {
-        console.log('Move blocked - gameOver:', gameOver, 'aiMoving:', aiMoving);
-        return;
-    }
+    if (gameOver || (playerColor && currentPlayer !== playerColor) || aiMoving) return;
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor((e.clientX - rect.left) / cellWidth);
     const y = Math.floor((e.clientY - rect.top) / cellHeight);
     if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight) return;
-
-    console.log('Player clicked:', x, y, 'currentPlayer:', currentPlayer);
 
     if (firstMove) {
         if (!board[y][x].revealed) {
@@ -507,28 +478,11 @@ function handleMove(e) {
             animatePiece(x, y, x, y, piece, () => {
                 updateScoreboard();
                 updateCapturedList();
+                firstMove = false;
                 currentPlayer = aiColor;
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
-                console.log('Player flipped piece - playerColor:', playerColor, 'aiColor:', aiColor);
-                
-                // 直接執行 AI 第一步翻棋
-                let aiX, aiY;
-                do {
-                    aiX = Math.floor(Math.random() * gridWidth);
-                    aiY = Math.floor(Math.random() * gridHeight);
-                } while (board[aiY][aiX].revealed || (aiX === x && aiY === y));
-                
-                board[aiY][aiX].revealed = true;
-                animatePiece(aiX, aiY, aiX, aiY, board[aiY][aiX].piece, () => {
-                    updateScoreboard();
-                    updateCapturedList();
-                    firstMove = false;
-                    currentPlayer = playerColor;
-                    document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
-                    drawBoard();
-                    console.log('AI flipped first piece:', board[aiY][aiX].piece);
-                });
+                setTimeout(aiMove, 500); // AI 行動
             });
         }
     } else if (selectedPiece) {
@@ -543,21 +497,18 @@ function handleMove(e) {
             animatePiece(selectedPiece.x, selectedPiece.y, x, y, piece, () => {
                 updateScoreboard();
                 updateCapturedList();
-                selectedPiece = null;
+console.log('AI 開始行動');
+selectedPiece = null; // 防止上一步選擇干擾
                 if (!checkGameOver()) {
                     currentPlayer = aiColor;
                     document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                     drawBoard();
-                    console.log('Player moved piece, triggering AI');
-                    setTimeout(aiMove, 500);
-                } else {
-                    console.log('Game over after player move');
+                    setTimeout(aiMove, 500); // AI 行動
                 }
             });
         } else {
             selectedPiece = null;
             drawBoard();
-            console.log('Invalid move, deselected');
         }
     } else if (!board[y][x].revealed) {
         board[y][x].revealed = true;
@@ -568,51 +519,44 @@ function handleMove(e) {
                 currentPlayer = aiColor;
                 document.getElementById('current-player').textContent = `當前玩家：${currentPlayer === 'red' ? '紅方' : '黑方'}`;
                 drawBoard();
-                console.log('Player flipped piece, triggering AI');
-                setTimeout(aiMove, 500);
-            } else {
-                console.log('Game over after player flip');
+                setTimeout(aiMove, 500); // AI 行動
             }
         });
     } else if (board[y][x].piece && isPlayerPiece(board[y][x].piece)) {
         selectedPiece = { x, y };
         drawBoard();
-        console.log('Player selected piece:', board[y][x].piece);
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    canvas.addEventListener('click', e => handleMove(e));
-    canvas.addEventListener('touchstart', e => {
-        e.preventDefault();
-        handleMove(e.touches[0]);
-    }, { passive: false });
+canvas.addEventListener('click', e => handleMove(e));
+canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    handleMove(e.touches[0]);
+}, { passive: false });
 
-    document.getElementById('reset-btn').addEventListener('click', () => {
-        initializeBoard();
-        drawBoard();
-    });
-
-    document.getElementById('easy-btn').addEventListener('click', () => {
-        difficulty = 'easy';
-        initializeBoard();
-        drawBoard();
-        updateDifficultyDisplay();
-    });
-
-    document.getElementById('hard-btn').addEventListener('click', () => {
-        difficulty = 'hard';
-        initializeBoard();
-        drawBoard();
-        updateDifficultyDisplay();
-    });
-
-    window.addEventListener('resize', resizeCanvas);
-
+document.getElementById('reset-btn').addEventListener('click', () => {
     initializeBoard();
     drawBoard();
-    updateScoreboard();
-    updateCapturedList();
-    updateDifficultyDisplay();
-    console.log('Game initialized');
 });
+
+document.getElementById('easy-btn').addEventListener('click', () => {
+    difficulty = 'easy';
+    initializeBoard();
+    drawBoard();
+    updateDifficultyDisplay();
+});
+
+document.getElementById('hard-btn').addEventListener('click', () => {
+    difficulty = 'hard';
+    initializeBoard();
+    drawBoard();
+    updateDifficultyDisplay();
+});
+
+window.addEventListener('resize', resizeCanvas);
+
+initializeBoard();
+drawBoard();
+updateScoreboard();
+updateCapturedList();
+updateDifficultyDisplay();
