@@ -88,7 +88,7 @@
             justify-content: center;
             max-width: 720px;
             position: absolute;
-            bottom: 20px;
+            bottom: 100px; /* 上移避免遮擋 */
             z-index: 2;
         }
         #opponents {
@@ -148,7 +148,7 @@
             display: flex;
             gap: 10px;
             position: absolute;
-            bottom: 120px;
+            bottom: 20px; /* 調整至更低位置 */
             z-index: 2;
         }
         button {
@@ -166,7 +166,7 @@
         }
         #info-panel {
             position: absolute;
-            bottom: 20px;
+            bottom: 180px; /* 上移避免遮擋玩家 */
             left: 20px;
             width: 300px;
             padding: 15px;
@@ -257,6 +257,8 @@
         const straightFlushSound = new Audio('003.mp3');
         const fourOfAKindSound = new Audio('004.mp3');
         const fullHouseSound = new Audio('005.mp3');
+        const winSound = new Audio('win.mp3');
+        const lostSound = new Audio('lost.mp3');
 
         // 初始化遊戲
         function initGame() {
@@ -324,14 +326,14 @@
                     aiHand.innerHTML = '';
                     if (hands[i] && Array.isArray(hands[i])) {
                         const cardCount = hands[i].length;
-                        const maxAngle = 60; // 最大展開角度
+                        const maxAngle = 60;
                         const angleStep = cardCount > 1 ? Math.min(maxAngle / (cardCount - 1), 10) : 0;
                         hands[i].forEach((card, j) => {
                             const cardDiv = document.createElement('div');
                             cardDiv.classList.add('opponent-card');
                             const angle = (j - (cardCount - 1) / 2) * angleStep;
                             cardDiv.style.transform = `rotate(${angle}deg)`;
-                            cardDiv.style.left = `${j * 10}px`; // 輕微重疊
+                            cardDiv.style.left = `${j * 10}px`;
                             aiHand.appendChild(cardDiv);
                         });
                     }
@@ -361,8 +363,15 @@
         function updateStatus() {
             const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
             if (hands.some(hand => hand && hand.length === 0)) {
+                const winner = hands.findIndex(hand => hand && hand.length === 0);
+                if (winner === 0) {
+                    winSound.play().catch(e => console.log('Win sound error:', e));
+                    document.getElementById('status').textContent = '你贏了！';
+                } else {
+                    lostSound.play().catch(e => console.log('Lost sound error:', e));
+                    document.getElementById('status').textContent = '你輸了！';
+                }
                 calculateScores();
-                document.getElementById('status').textContent = `回合結束！${names[hands.findIndex(hand => hand && hand.length === 0)]} 獲勝！`;
                 clearInterval(timerInterval);
             } else {
                 document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}`;
@@ -721,3 +730,9 @@
             scores = [0, 0, 0, 0];
             initGame();
         }
+
+        // 初始化遊戲
+        initGame();
+    </script>
+</body>
+</html>
