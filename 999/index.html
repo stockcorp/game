@@ -205,6 +205,29 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             transform: translateY(0);
         }
+        #notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            font-size: 24px;
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        #notification.show {
+            opacity: 1;
+        }
+        #notification.win {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+        }
+        #notification.lose {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+        }
     </style>
 </head>
 <body>
@@ -242,6 +265,7 @@
         </div>
         <div id="history"></div>
     </div>
+    <div id="notification"></div>
 
     <script>
         const suits = ['♠', '♥', '♦', '♣'];
@@ -263,13 +287,14 @@
         let isAutoPlay = false;
         let gameEnded = false;
 
+        // 注意：請確保以下音效檔案位於與 HTML 同目錄下
         const startSound = new Audio('start.mp3');
         const passSound = new Audio('pass.mp3');
-        const pairSound = new Audio('001.mp3');
-        const straightSound = new Audio('002.mp3');
-        const straightFlushSound = new Audio('003.mp3');
-        const fourOfAKindSound = new Audio('004.mp3');
-        const fullHouseSound = new Audio('005.mp3');
+        const pairSound = new Audio('001.mp3'); // 一對、三條
+        const straightSound = new Audio('002.mp3'); // 順子
+        const straightFlushSound = new Audio('003.mp3'); // 同花順
+        const fourOfAKindSound = new Audio('004.mp3'); // 鐵支
+        const fullHouseSound = new Audio('005.mp3'); // 葫蘆
         const winSound = new Audio('win.mp3');
         const lostSound = new Audio('lost.mp3');
 
@@ -304,9 +329,9 @@
             updateHistory();
             startTimer();
             if (currentPlayer !== 0) {
-                setTimeout(aiPlay, 1500);
+                setTimeout(aiPlay, 2500);
             } else if (isAutoPlay) {
-                setTimeout(autoPlay, 1500);
+                setTimeout(autoPlay, 2500);
             }
         }
 
@@ -372,6 +397,15 @@
             }
         }
 
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `show ${type}`;
+            setTimeout(() => {
+                notification.className = '';
+            }, 2000);
+        }
+
         function updateStatus() {
             const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
             if (hands.some(hand => hand && hand.length === 0) && !gameEnded) {
@@ -379,10 +413,10 @@
                 const winner = hands.findIndex(hand => hand && hand.length === 0);
                 if (winner === 0) {
                     winSound.play().catch(e => console.log('Win sound error:', e));
-                    alert('您贏了！');
+                    showNotification('您贏了！', 'win');
                 } else {
                     lostSound.play().catch(e => console.log('Lost sound error:', e));
-                    alert('您輸了！');
+                    showNotification('您輸了！', 'lose');
                 }
                 calculateScores();
                 clearInterval(timerInterval);
@@ -426,24 +460,24 @@
             if (currentPlayer !== 0 || isAutoPlay) return;
             const cards = selectedCards.map(i => hands[0][i]);
             if (cards.length === 0) {
-                alert('請選擇卡牌！');
+                showNotification('請選擇卡牌！', 'lose');
                 return;
             }
             const combo = getCombination(cards);
             if (!combo) {
-                alert('無效組合！');
+                showNotification('無效組合！', 'lose');
                 selectedCards = [];
                 updateUI();
                 return;
             }
             if (lastPlayed && !canBeat(combo, lastPlayed)) {
-                alert('出牌必須大於桌面上的牌！');
+                showNotification('出牌必須大於桌面上的牌！', 'lose');
                 selectedCards = [];
                 updateUI();
                 return;
             }
             if (!lastPlayed && cards.length > 0 && !cards.some(card => card.rank === '3' && card.suit === '♣')) {
-                alert('第一輪必須包含♣3！');
+                showNotification('第一輪必須包含♣3！', 'lose');
                 selectedCards = [];
                 updateUI();
                 return;
@@ -533,7 +567,7 @@
             isAutoPlay = !isAutoPlay;
             document.getElementById('status').textContent = isAutoPlay ? '輪到 玩家 (電腦代玩)' : '輪到 玩家 (玩家手動玩)';
             if (isAutoPlay && currentPlayer === 0) {
-                setTimeout(autoPlay, 1500);
+                setTimeout(autoPlay, 2500);
             }
         }
 
@@ -547,9 +581,9 @@
             }
             startTimer();
             if (currentPlayer !== 0) {
-                setTimeout(aiPlay, 1500);
+                setTimeout(aiPlay, 2500);
             } else if (isAutoPlay) {
-                setTimeout(autoPlay, 1500);
+                setTimeout(autoPlay, 2500);
             }
         }
 
@@ -589,7 +623,7 @@
                     playComboSound(validCombo.type);
                 }
                 animateCards(validCombo.cards, `ai${currentPlayer}`, validCombo.type);
-                moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                moveHistory.push(`${names[currentPlayer]}出Hours: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 tableCards = validCombo.cards;
                 lastPlayed = validCombo;
                 hands[currentPlayer] = hand.filter(card => !validCombo.cards.includes(card));
@@ -610,13 +644,14 @@
         function playComboSound(type) {
             const sounds = {
                 'pair': pairSound,
+                'threeOfAKind': pairSound, // 三條共用 001.mp3
                 'straight': straightSound,
                 'straightFlush': straightFlushSound,
                 'fourOfAKind': fourOfAKindSound,
                 'fullHouse': fullHouseSound
             };
             if (sounds[type]) {
-                sounds[type].play().catch(e => console.log(`Sound error (${type}):`, e));
+                sounds[type].play().catch(e => console.log(`音效檔案 ${type}.mp3 載入失敗:`, e));
             }
         }
 
@@ -676,10 +711,10 @@
                 if (isStraight(cards)) {
                     let value, suit;
                     if (cards.map(c => c.rank).join('') === '23456') {
-                        value = 14; // 最大順子
+                        value = 14;
                         suit = suitOrder[cards.find(c => c.rank === '2').suit];
                     } else if (cards.map(c => c.rank).join('') === 'A2345') {
-                        value = 0; // 最小順子
+                        value = 0;
                         suit = suitOrder[cards.find(c => c.rank === '5').suit];
                     } else {
                         value = rankOrder[cards[0].rank];
