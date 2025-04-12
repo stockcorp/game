@@ -286,6 +286,7 @@
         let timerInterval = null;
         let isAutoPlay = false;
         let gameEnded = false;
+        let isFirstRound = true; // 新增旗標控制第一輪
 
         // 注意：請確保以下音效檔案位於與 HTML 同目錄下
         const startSound = new Audio('start.mp3');
@@ -324,14 +325,16 @@
             timer = 30;
             isAutoPlay = false;
             gameEnded = false;
+            isFirstRound = true;
             updateUI();
             updateStatus();
             updateHistory();
             startTimer();
-            if (currentPlayer !== 0) {
-                setTimeout(aiPlay, 2500);
-            } else if (isAutoPlay) {
+            // 持有♣3的玩家自動出牌
+            if (currentPlayer === 0 && isAutoPlay) {
                 setTimeout(autoPlay, 2500);
+            } else if (currentPlayer !== 0) {
+                setTimeout(aiPlay, 2500);
             }
         }
 
@@ -470,14 +473,15 @@
                 updateUI();
                 return;
             }
-            if (lastPlayed && !canBeat(combo, lastPlayed)) {
-                showNotification('出牌必須大於桌面上的牌！', 'lose');
+            // 第一輪檢查♣3
+            if (isFirstRound && !cards.some(card => card.rank === '3' && card.suit === '♣')) {
+                showNotification('第一輪必須包含♣3！', 'lose');
                 selectedCards = [];
                 updateUI();
                 return;
             }
-            if (!lastPlayed && cards.length > 0 && !cards.some(card => card.rank === '3' && card.suit === '♣')) {
-                showNotification('第一輪必須包含♣3！', 'lose');
+            if (lastPlayed && !canBeat(combo, lastPlayed)) {
+                showNotification('出牌必須大於桌面上的牌！', 'lose');
                 selectedCards = [];
                 updateUI();
                 return;
@@ -493,11 +497,19 @@
             }
             selectedCards = [];
             passes = 0;
+            if (isFirstRound && cards.some(card => card.rank === '3' && card.suit === '♣')) {
+                isFirstRound = false;
+            }
             nextPlayer();
         }
 
         function pass() {
             if (currentPlayer !== 0 || isAutoPlay) return;
+            // 第一輪若持有♣3，不能過牌
+            if (isFirstRound && hands[0].some(card => card.rank === '3' && card.suit === '♣')) {
+                showNotification('持有梅花三必須出牌！', 'lose');
+                return;
+            }
             passSound.play().catch(e => console.log('Pass sound error:', e));
             moveHistory.push('玩家: 過牌');
             passes++;
@@ -505,6 +517,7 @@
                 tableCards = [];
                 lastPlayed = null;
                 passes = 0;
+                isFirstRound = false;
             }
             nextPlayer();
         }
@@ -513,7 +526,7 @@
             if (currentPlayer !== 0 || !isAutoPlay) return;
             const hand = hands[0];
             if (!hand) return;
-            if (!lastPlayed) {
+            if (isFirstRound) {
                 let validCombos = getAllCombinations(hand).filter(combo => 
                     combo.cards.some(card => card.rank === '3' && card.suit === '♣')
                 );
@@ -528,6 +541,7 @@
                     lastPlayed = combo;
                     hands[0] = hand.filter(card => !combo.cards.includes(card));
                     passes = 0;
+                    isFirstRound = false;
                     nextPlayer();
                     return;
                 }
@@ -551,6 +565,11 @@
                 hands[0] = hand.filter(card => !validCombo.cards.includes(card));
                 passes = 0;
             } else {
+                // 第一輪若持有♣3，不能過牌
+                if (isFirstRound && hand.some(card => card.rank === '3' && card.suit === '♣')) {
+                    showNotification('持有梅花三必須出牌！', 'lose');
+                    return;
+                }
                 passSound.play().catch(e => console.log('Pass sound error:', e));
                 moveHistory.push('玩家 (電腦代玩): 過牌');
                 passes++;
@@ -558,6 +577,7 @@
                     tableCards = [];
                     lastPlayed = null;
                     passes = 0;
+                    isFirstRound = false;
                 }
             }
             nextPlayer();
@@ -591,7 +611,21 @@
             const hand = hands[currentPlayer];
             if (!hand) return;
             const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
-            if (!lastPlayed) {
+            // 第一輪若非持有♣3的玩家，只能過牌
+            if (isFirstRound && !hand.some(card => card.rank === '3' && card.suit === '♣')) {
+                passSound.play().catch(e => console.log('Pass sound error:', e));
+                moveHistory.push(`${names[currentPlayer]}: 過牌`);
+                passes++;
+                if (passes >= 3) {
+                    tableCards = [];
+                    lastPlayed = null;
+                    passes = 0;
+                    isFirstRound = false;
+                }
+                nextPlayer();
+                return;
+            }
+            if (isFirstRound) {
                 let validCombos = getAllCombinations(hand).filter(combo => 
                     combo.cards.some(card => card.rank === '3' && card.suit === '♣')
                 );
@@ -606,6 +640,7 @@
                     lastPlayed = combo;
                     hands[currentPlayer] = hand.filter(card => !combo.cards.includes(card));
                     passes = 0;
+                    isFirstRound = false;
                     nextPlayer();
                     return;
                 }
@@ -623,7 +658,7 @@
                     playComboSound(validCombo.type);
                 }
                 animateCards(validCombo.cards, `ai${currentPlayer}`, validCombo.type);
-                moveHistory.push(`${names[currentPlayer]}出Hours: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 tableCards = validCombo.cards;
                 lastPlayed = validCombo;
                 hands[currentPlayer] = hand.filter(card => !validCombo.cards.includes(card));
@@ -636,6 +671,7 @@
                     tableCards = [];
                     lastPlayed = null;
                     passes = 0;
+                    isFirstRound = false;
                 }
             }
             nextPlayer();
@@ -644,7 +680,7 @@
         function playComboSound(type) {
             const sounds = {
                 'pair': pairSound,
-                'threeOfAKind': pairSound, // 三條共用 001.mp3
+                'threeOfAKind': pairSound,
                 'straight': straightSound,
                 'straightFlush': straightFlushSound,
                 'fourOfAKind': fourOfAKindSound,
@@ -710,10 +746,11 @@
             if (cards.length === 5) {
                 if (isStraight(cards)) {
                     let value, suit;
-                    if (cards.map(c => c.rank).join('') === '23456') {
+                    const sequence = cards.map(c => c.rank).sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
+                    if (sequence === '23456') {
                         value = 14;
                         suit = suitOrder[cards.find(c => c.rank === '2').suit];
-                    } else if (cards.map(c => c.rank).join('') === 'A2345') {
+                    } else if (sequence === 'A2345') {
                         value = 0;
                         suit = suitOrder[cards.find(c => c.rank === '5').suit];
                     } else {
@@ -736,10 +773,11 @@
                 fiveCards.sort(compareCards);
                 if (isStraightFlush(fiveCards)) {
                     let value, suit;
-                    if (fiveCards.map(c => c.rank).join('') === '23456') {
+                    const sequence = fiveCards.map(c => c.rank).sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
+                    if (sequence === '23456') {
                         value = 14;
                         suit = suitOrder[fiveCards.find(c => c.rank === '2').suit];
-                    } else if (fiveCards.map(c => c.rank).join('') === 'A2345') {
+                    } else if (sequence === 'A2345') {
                         value = 0;
                         suit = suitOrder[fiveCards.find(c => c.rank === '5').suit];
                     } else {
@@ -754,13 +792,30 @@
 
         function canBeat(newCombo, oldCombo) {
             const typeOrder = { 'straightFlush': 7, 'fourOfAKind': 6, 'fullHouse': 5, 'straight': 4, 'threeOfAKind': 3, 'pair': 2, 'single': 1 };
+            
+            // 一對的特殊壓制規則
+            if (newCombo.type === 'pair') {
+                if (oldCombo.type === 'pair') {
+                    if (newCombo.value !== oldCombo.value) {
+                        return newCombo.value > oldCombo.value;
+                    }
+                    return newCombo.suit > oldCombo.suit;
+                }
+                if (oldCombo.type === 'fourOfAKind' || oldCombo.type === 'straightFlush') {
+                    return false;
+                }
+                showNotification('一對只能被一對、鐵支或同花順壓！', 'lose');
+                return false;
+            }
+
+            // 其他牌型正常比較
             if (typeOrder[newCombo.type] > typeOrder[oldCombo.type]) {
                 return true;
             }
             if (typeOrder[newCombo.type] < typeOrder[oldCombo.type]) {
                 return false;
             }
-            if (newCombo.type === 'single' || newCombo.type === 'pair') {
+            if (newCombo.type === 'single') {
                 if (newCombo.value !== oldCombo.value) {
                     return newCombo.value > oldCombo.value;
                 }
@@ -812,10 +867,11 @@
                 cards.sort(compareCards);
                 if (isStraight(cards)) {
                     let value, suit;
-                    if (cards.map(c => c.rank).join('') === '23456') {
+                    const sequence = cards.map(c => c.rank).sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
+                    if (sequence === '23456') {
                         value = 14;
                         suit = suitOrder[cards.find(c => c.rank === '2').suit];
-                    } else if (cards.map(c => c.rank).join('') === 'A2345') {
+                    } else if (sequence === 'A2345') {
                         value = 0;
                         suit = suitOrder[cards.find(c => c.rank === '5').suit];
                     } else {
@@ -846,10 +902,11 @@
                 fiveCards.sort(compareCards);
                 if (isStraightFlush(fiveCards)) {
                     let value, suit;
-                    if (fiveCards.map(c => c.rank).join('') === '23456') {
+                    const sequence = fiveCards.map(c => c.rank).sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
+                    if (sequence === '23456') {
                         value = 14;
                         suit = suitOrder[fiveCards.find(c => c.rank === '2').suit];
-                    } else if (fiveCards.map(c => c.rank).join('') === 'A2345') {
+                    } else if (sequence === 'A2345') {
                         value = 0;
                         suit = suitOrder[fiveCards.find(c => c.rank === '5').suit];
                     } else {
@@ -883,8 +940,8 @@
             const validSequences = [
                 '23456', '34567', '45678', '56789', '678910', '78910J', '8910JQ', '910JQK', '10JQKA', 'A2345'
             ];
-            let ranks = cards.map(card => card.rank).sort((a, b) => rankOrder[b] - rankOrder[a]);
-            let sequence = ranks.join('');
+            let ranks = cards.map(card => card.rank);
+            let sequence = ranks.sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
             return validSequences.includes(sequence);
         }
 
