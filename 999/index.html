@@ -1,3 +1,12 @@
+html
+
+預覽
+
+收起
+
+換行
+
+複製
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -286,12 +295,12 @@
         let timerInterval = null;
         let isAutoPlay = false;
         let gameEnded = false;
-        let isFirstRound = true; // 新增旗標控制第一輪
+        let isFirstRound = true;
 
         // 注意：請確保以下音效檔案位於與 HTML 同目錄下
         const startSound = new Audio('start.mp3');
         const passSound = new Audio('pass.mp3');
-        const pairSound = new Audio('001.mp3'); // 一對、三條
+        const pairSound = new Audio('001.mp3'); // 一對
         const straightSound = new Audio('002.mp3'); // 順子
         const straightFlushSound = new Audio('003.mp3'); // 同花順
         const fourOfAKindSound = new Audio('004.mp3'); // 鐵支
@@ -330,7 +339,6 @@
             updateStatus();
             updateHistory();
             startTimer();
-            // 持有♣3的玩家自動出牌
             if (currentPlayer === 0 && isAutoPlay) {
                 setTimeout(autoPlay, 2500);
             } else if (currentPlayer !== 0) {
@@ -473,7 +481,6 @@
                 updateUI();
                 return;
             }
-            // 第一輪檢查♣3
             if (isFirstRound && !cards.some(card => card.rank === '3' && card.suit === '♣')) {
                 showNotification('第一輪必須包含♣3！', 'lose');
                 selectedCards = [];
@@ -505,7 +512,6 @@
 
         function pass() {
             if (currentPlayer !== 0 || isAutoPlay) return;
-            // 第一輪若持有♣3，不能過牌
             if (isFirstRound && hands[0].some(card => card.rank === '3' && card.suit === '♣')) {
                 showNotification('持有梅花三必須出牌！', 'lose');
                 return;
@@ -558,14 +564,13 @@
                 if (validCombo.type !== 'single') {
                     playComboSound(validCombo.type);
                 }
-                animateCards(validCombo.cards, 'player', validCombo.type);
+                animateCards(validCombo.cards synonymous, 'player', validCombo.type);
                 moveHistory.push(`玩家 (電腦代玩) 出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 tableCards = validCombo.cards;
                 lastPlayed = validCombo;
                 hands[0] = hand.filter(card => !validCombo.cards.includes(card));
                 passes = 0;
             } else {
-                // 第一輪若持有♣3，不能過牌
                 if (isFirstRound && hand.some(card => card.rank === '3' && card.suit === '♣')) {
                     showNotification('持有梅花三必須出牌！', 'lose');
                     return;
@@ -611,7 +616,6 @@
             const hand = hands[currentPlayer];
             if (!hand) return;
             const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
-            // 第一輪若非持有♣3的玩家，只能過牌
             if (isFirstRound && !hand.some(card => card.rank === '3' && card.suit === '♣')) {
                 passSound.play().catch(e => console.log('Pass sound error:', e));
                 moveHistory.push(`${names[currentPlayer]}: 過牌`);
@@ -680,7 +684,6 @@
         function playComboSound(type) {
             const sounds = {
                 'pair': pairSound,
-                'threeOfAKind': pairSound,
                 'straight': straightSound,
                 'straightFlush': straightFlushSound,
                 'fourOfAKind': fourOfAKindSound,
@@ -740,9 +743,6 @@
             if (cards.length === 2 && cards[0].rank === cards[1].rank) {
                 return { type: 'pair', value: rankOrder[cards[0].rank], suit: Math.max(suitOrder[cards[0].suit], suitOrder[cards[1].suit]), cards };
             }
-            if (cards.length === 3 && Object.values(counts).includes(3)) {
-                return { type: 'threeOfAKind', value: rankOrder[cards[0].rank], cards };
-            }
             if (cards.length === 5) {
                 if (isStraight(cards)) {
                     let value, suit;
@@ -791,9 +791,9 @@
         }
 
         function canBeat(newCombo, oldCombo) {
-            const typeOrder = { 'straightFlush': 7, 'fourOfAKind': 6, 'fullHouse': 5, 'straight': 4, 'threeOfAKind': 3, 'pair': 2, 'single': 1 };
-            
-            // 一對的特殊壓制規則
+            const typeOrder = { 'straightFlush': 5, 'fourOfAKind': 4, 'fullHouse': 3, 'straight': 2, 'pair': 1, 'single': 0 };
+
+            // 一對的壓制規則
             if (newCombo.type === 'pair') {
                 if (oldCombo.type === 'pair') {
                     if (newCombo.value !== oldCombo.value) {
@@ -808,7 +808,22 @@
                 return false;
             }
 
-            // 其他牌型正常比較
+            // 葫蘆的壓制規則
+            if (newCombo.type === 'fullHouse') {
+                if (oldCombo.type === 'pair') {
+                    showNotification('葫蘆和一對不能互壓！', 'lose');
+                    return false;
+                }
+                if (oldCombo.type === 'fullHouse') {
+                    return newCombo.value > oldCombo.value;
+                }
+                if (oldCombo.type === 'fourOfAKind' || oldCombo.type === 'straightFlush') {
+                    return false;
+                }
+                return true;
+            }
+
+            // 其他牌型比較
             if (typeOrder[newCombo.type] > typeOrder[oldCombo.type]) {
                 return true;
             }
@@ -821,10 +836,10 @@
                 }
                 return newCombo.suit > oldCombo.suit;
             }
-            if (newCombo.type === 'threeOfAKind' || newCombo.type === 'fullHouse' || newCombo.type === 'fourOfAKind') {
+            if (newCombo.type === 'straight' || newCombo.type === 'straightFlush') {
                 return newCombo.value > oldCombo.value;
             }
-            if (newCombo.type === 'straight' || newCombo.type === 'straightFlush') {
+            if (newCombo.type === 'fourOfAKind') {
                 return newCombo.value > oldCombo.value;
             }
             return false;
@@ -838,11 +853,6 @@
                     combos.push({ type: 'pair', value: rankOrder[hand[i].rank], suit: Math.max(suitOrder[hand[i].suit], suitOrder[hand[i + 1].suit]), cards: [hand[i], hand[i + 1]] });
                 }
             }
-            for (let i = 0; i < hand.length - 2; i++) {
-                if (hand[i].rank === hand[i + 1].rank && hand[i].rank === hand[i + 2].rank) {
-                    combos.push({ type: 'threeOfAKind', value: rankOrder[hand[i].rank], cards: [hand[i], hand[i + 1], hand[i + 2]] });
-                }
-            }
             if (hand.length >= 5) {
                 const fiveCombos = getFiveCardCombinations(hand);
                 combos.push(...fiveCombos);
@@ -852,7 +862,7 @@
                 combos.push(...sevenCombos);
             }
             return combos.sort((a, b) => {
-                const typeOrder = { 'straightFlush': 7, 'fourOfAKind': 6, 'fullHouse': 5, 'straight': 4, 'threeOfAKind': 3, 'pair': 2, 'single': 1 };
+                const typeOrder = { 'straightFlush': 5, 'fourOfAKind': 4, 'fullHouse': 3, 'straight': 2, 'pair': 1, 'single': 0 };
                 if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[b.type] - typeOrder[a.type];
                 if (a.value !== b.value) return b.value - a.value;
                 if (a.suit && b.suit) return b.suit - a.suit;
