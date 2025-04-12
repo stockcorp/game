@@ -59,6 +59,7 @@
             font-size: 20px;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
+            visibility: visible;
         }
         .card.red {
             color: red;
@@ -94,6 +95,7 @@
             position: absolute;
             bottom: 20px;
             z-index: 2;
+            visibility: visible;
         }
         #opponents {
             position: absolute;
@@ -314,7 +316,7 @@
                 hands[i % 4].push(deck[i]);
             }
             hands.forEach(hand => hand.sort(compareCards));
-            console.log('玩家手牌:', hands[0]);
+            console.log('分配後手牌:', hands);
             currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♣'));
             if (currentPlayer === -1) currentPlayer = 0;
             tableCards = [];
@@ -349,7 +351,7 @@
                 console.log('更新 UI，玩家手牌數:', hands[0]?.length || 0);
                 const playerHand = document.getElementById('player-hand');
                 playerHand.innerHTML = '<div class="player-label" style="position: absolute; top: -30px;">玩家</div>';
-                if (hands[0]) {
+                if (hands[0] && hands[0].length > 0) {
                     hands[0].forEach((card, index) => {
                         const cardDiv = document.createElement('div');
                         cardDiv.classList.add('card');
@@ -361,12 +363,14 @@
                         cardDiv.onclick = () => toggleCardSelection(index);
                         playerHand.appendChild(cardDiv);
                     });
+                } else {
+                    showNotification('手牌初始化失敗，請重試！', 'lose');
                 }
 
                 for (let i = 1; i <= 3; i++) {
                     const aiHand = document.getElementById(`ai${i}-hand`);
                     aiHand.innerHTML = '';
-                    if (hands[i]) {
+                    if (hands[i] && hands[i].length > 0) {
                         const cardCount = hands[i].length;
                         const maxAngle = 60;
                         const angleStep = cardCount > 1 ? Math.min(maxAngle / (cardCount - 1), 10) : 0;
@@ -396,6 +400,7 @@
                 document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI 1: ${scores[1]} | AI 2: ${scores[2]} | AI 3: ${scores[3]}`;
             } catch (e) {
                 console.error('更新 UI 錯誤:', e);
+                showNotification('UI 渲染失敗，請重試！', 'lose');
             }
         }
 
@@ -555,7 +560,7 @@
                 if (validCombo.type !== 'single') {
                     playComboSound(validCombo.type);
                 }
-                animateCards(validCombo.cards synonymous, 'player', validCombo.type);
+                animateCards(validCombo.cards, 'player', validCombo.type);
                 moveHistory.push(`玩家 (電腦代玩) 出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 tableCards = validCombo.cards;
                 lastPlayed = validCombo;
