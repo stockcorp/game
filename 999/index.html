@@ -24,7 +24,6 @@
             max-width: 1200px;
             margin: 0 auto;
             overflow: hidden;
-            min-height: 80vh; /* 確保遊戲區域有足夠高度 */
         }
         #table {
             display: flex;
@@ -151,14 +150,13 @@
             letter-spacing: 1px;
         }
         #info-panel {
-            position: absolute;
-            top: 0; /* 固定在 #game-container 頂部 */
+            flex: 0 0 20vh;
             width: 100%;
             max-width: 1200px;
             padding: min(3vw, 15px);
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(220, 220, 220, 0.95));
-            border-bottom: 1px solid #ccc;
-            box-shadow: 0 4px min(2vw, 12px) rgba(0,0,0,0.2);
+            border-top: 1px solid #ccc;
+            box-shadow: 0 -4px min(2vw, 12px) rgba(0,0,0,0.2);
             z-index: 3;
             display: flex;
             flex-direction: column;
@@ -235,7 +233,7 @@
             background: linear-gradient(135deg, #f44336, #d32f2f);
         }
         @media (max-width: 768px) {
-            #ai1 { top: calc(5vh + 150px); } /* 調整 AI 1 位置，避免與 #info-panel 重疊 */
+            #ai1 { top: 5vh; }
             #ai2 { left: 5vw; top: min(20vh, 120px); }
             #ai3 { right: 5vw; top: min(20vh, 120px); }
             .player-label { font-size: min(3vw, 16px); padding: 0.5rem 1rem; }
@@ -244,7 +242,7 @@
             #history { font-size: min(3.5vw, 14px); }
         }
         @media (max-width: 480px) {
-            #ai1 { top: calc(2vh + 120px); } /* 調整 AI 1 位置 */
+            #ai1 { top: 2vh; }
             #ai2 { left: 2vw; top: min(15vh, 100px); }
             #ai3 { right: 2vw; top: min(15vh, 100px); }
             .card { font-size: min(4vw, 16px); }
@@ -253,7 +251,7 @@
             #notification { font-size: min(6vw, 20px); }
         }
 
-        /* 標頭樣式 */
+        /* 新增標頭樣式 */
         .container {
             background: #fffcf7;
             padding: 25px;
@@ -319,7 +317,7 @@
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
-        /* 廣告位樣式 */
+        /* 新增廣告位樣式 */
         .game-section {
             display: flex;
             justify-content: space-between;
@@ -355,10 +353,10 @@
     </style>
 </head>
 <body>
-    <!-- 標頭區塊 -->
+    <!-- 新增標頭區塊 -->
     <div class="container">
         <header>
-            <img src="https://xbon520.github.io/game/xiangqi/img/banner.jpg" alt="78PlayGame Banner" class="banner">
+            <img src="https://xbon520.github.io/game/img/banner.jpg" alt="78PlayGame Banner" class="banner">
             <h1>免費線上棋牌遊戲網 (78PlayGame)</h1>
             <nav class="menu">
                 <a href="../index.html" class="menu-btn">象棋 Xiangqi</a>
@@ -366,7 +364,7 @@
                 <a href="../about.html" class="menu-btn">關於</a>
             </nav>
         </header>
-        <!-- 遊戲區域，包含廣告位 -->
+        <!-- 新增遊戲區域，包含廣告位 -->
         <div class="game-section">
             <div class="ad-left">
                 <!-- Google AdSense 左側廣告 -->
@@ -378,21 +376,8 @@
                 <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
             </div>
             <div class="game-content">
-                <!-- 遊戲區域 -->
+                <!-- 原始遊戲區域 -->
                 <div id="game-container">
-                    <!-- 計分和出牌區塊，移動到 AI 1 上方 -->
-                    <div id="info-panel">
-                        <div id="status">等待開始...</div>
-                        <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
-                        <div id="timer">計時器: 30秒</div>
-                        <div id="controls">
-                            <button onclick="playCards()">出牌</button>
-                            <button onclick="pass()">過牌</button>
-                            <button onclick="toggleAutoPlay()">電腦代玩</button>
-                            <button onclick="resetGame()">重新洗牌</button>
-                        </div>
-                        <div id="history"></div>
-                    </div>
                     <div id="opponents">
                         <div class="opponent" id="ai1">
                             <div class="player-label">AI 1</div>
@@ -413,6 +398,18 @@
                     <div id="player-hand">
                         <div class="player-label" style="position: absolute; top: -30px;">玩家</div>
                     </div>
+                </div>
+                <div id="info-panel">
+                    <div id="status">等待開始...</div>
+                    <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
+                    <div id="timer">計時器: 30秒</div>
+                    <div id="controls">
+                        <button onclick="playCards()">出牌</button>
+                        <button onclick="pass()">過牌</button>
+                        <button onclick="toggleAutoPlay()">電腦代玩</button>
+                        <button onclick="resetGame()">重新洗牌</button>
+                    </div>
+                    <div id="history"></div>
                 </div>
                 <div id="notification"></div>
             </div>
@@ -1127,7 +1124,7 @@
         function getAllCombinations(hand) {
             try {
                 let combos = [];
-                hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.ran], suit: suitOrder[card.suit], cards: [card] }));
+                hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.rank], suit: suitOrder[card.suit], cards: [card] }));
                 for (let i = 0; i < hand.length - 1; i++) {
                     if (hand[i].rank === hand[i + 1].rank) {
                         combos.push({ type: 'pair', value: rankOrder[hand[i].rank], suit: Math.max(suitOrder[hand[i].suit], suitOrder[hand[i + 1].suit]), cards: [hand[i], hand[i + 1]] });
