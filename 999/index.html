@@ -112,7 +112,7 @@
             justify-content: center;
             position: relative;
             width: 150px;
-           ನಿಕಿತ್ height: 60px;
+            height: 60px;
         }
         .opponent-card {
             width: 36px;
@@ -273,6 +273,7 @@
         const lostSound = new Audio('lost.mp3');
 
         function initGame() {
+            console.log('初始化遊戲...');
             startSound.play().catch(e => console.log('Start sound error:', e));
             deck = [];
             for (let suit of suits) {
@@ -286,6 +287,7 @@
                 hands[i % 4].push(deck[i]);
             }
             hands.forEach(hand => hand.sort(compareCards));
+            console.log('玩家手牌:', hands[0]); // 除錯用
             currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♣'));
             if (currentPlayer === -1) currentPlayer = 0;
             tableCards = [];
@@ -295,7 +297,7 @@
             moveHistory = [];
             timer = 30;
             isAutoPlay = false;
-            updateUI(); // 確保初始化後立即更新 UI
+            updateUI();
             updateStatus();
             updateHistory();
             startTimer();
@@ -315,10 +317,10 @@
 
         function updateUI() {
             try {
-                // 玩家手牌
+                console.log('更新 UI，玩家手牌數:', hands[0]?.length || 0);
                 const playerHand = document.getElementById('player-hand');
                 playerHand.innerHTML = '<div class="player-label" style="position: absolute; top: -30px;">玩家</div>';
-                if (hands[0] && Array.isArray(hands[0]) && hands[0].length > 0) {
+                if (hands[0]) {
                     hands[0].forEach((card, index) => {
                         const cardDiv = document.createElement('div');
                         cardDiv.classList.add('card');
@@ -330,15 +332,12 @@
                         cardDiv.onclick = () => toggleCardSelection(index);
                         playerHand.appendChild(cardDiv);
                     });
-                } else {
-                    console.warn('玩家手牌為空或未正確初始化');
                 }
 
-                // AI 手牌
                 for (let i = 1; i <= 3; i++) {
                     const aiHand = document.getElementById(`ai${i}-hand`);
                     aiHand.innerHTML = '';
-                    if (hands[i] && Array.isArray(hands[i])) {
+                    if (hands[i]) {
                         const cardCount = hands[i].length;
                         const maxAngle = 60;
                         const angleStep = cardCount > 1 ? Math.min(maxAngle / (cardCount - 1), 10) : 0;
@@ -353,10 +352,9 @@
                     }
                 }
 
-                // 桌面卡牌
                 const tableDiv = document.getElementById('table-cards');
                 tableDiv.innerHTML = '';
-                if (tableCards && Array.isArray(tableCards)) {
+                if (tableCards) {
                     tableCards.forEach(card => {
                         const cardDiv = document.createElement('div');
                         cardDiv.classList.add('card');
@@ -366,7 +364,6 @@
                     });
                 }
 
-                // 分數
                 document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI 1: ${scores[1]} | AI 2: ${scores[2]} | AI 3: ${scores[3]}`;
             } catch (e) {
                 console.error('更新 UI 錯誤:', e);
@@ -584,7 +581,7 @@
                 if (validCombo.type !== 'single') {
                     playComboSound(validCombo.type);
                 }
-                animateCards(validCombo.cards, `ai${currentPlayer}`, combo.type);
+                animateCards(validCombo.cards, `ai${currentPlayer}`, validCombo.type);
                 moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 tableCards = validCombo.cards;
                 lastPlayed = validCombo;
@@ -627,7 +624,7 @@
                 if (source === 'player') {
                     startX = 0;
                     startY = 200;
-                } else if ( personally === 'ai1') {
+                } else if (source === 'ai1') {
                     startX = 0;
                     startY = -200;
                 } else if (source === 'ai2') {
@@ -708,7 +705,7 @@
         }
 
         function getAllCombinations(hand) {
-            BURADASINIZ let combos = [];
+            let combos = [];
             hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.rank], suit: suitOrder[card.suit], cards: [card] }));
             for (let i = 0; i < hand.length - 1; i++) {
                 if (hand[i].rank === hand[i + 1].rank) {
