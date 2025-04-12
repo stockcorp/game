@@ -1,241 +1,899 @@
-/* Inherit and extend root styles.css */
-body {
-    background: linear-gradient(to bottom, #f8e1b5, #d4a576);
-}
+const suits = ['♠', '♥', '♦', '♣'];
+const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+const suitOrder = { '♠': 4, '♥': 3, '♦': 2, '♣': 1 };
+const rankOrder = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6, '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11, 'A': 12, '2': 13 };
 
-#game-container {
-    width: 100%;
-    max-width: 480px;
-    height: 480px;
-    position: relative;
-    background: #f0d9b5;
-    border-radius: 15px;
-    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-}
+let deck = [];
+let hands = [[], [], [], []];
+let tableCards = [];
+let currentPlayer = 0;
+let lastPlayed = null;
+let scores = [0, 0, 0, 0];
+let selectedCards = [];
+let passes = 0;
+let moveHistory = [];
+let timer = 30;
+let timerInterval = null;
+let isAutoPlay = false;
+let gameEnded = false;
+let isFirstRound = true;
 
-#table {
-    width: 80%;
-    height: 40%;
-    background-color: #4CAF50;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+// 音效載入
+const startSound = new Audio('sounds/start.mp3');
+const passSound = new Audio('sounds/pass.mp3');
+const pairSound = new Audio('sounds/001.mp3');
+const straightSound = new Audio('sounds/002.mp3');
+const straightFlushSound = new Audio('sounds/003.mp3');
+const fourOfAKindSound = new Audio('sounds/004.mp3');
+const fullHouseSound = new Audio('sounds/005.mp3');
+const winSound = new Audio('sounds/win.mp3');
+const lostSound = new Audio('sounds/lost.mp3');
 
-#table-cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    justify-content: center;
-    align-items: center;
-    min-height: 84px;
-}
-
-.card {
-    width: 60px;
-    height: 84px;
-    background-color: #fff;
-    border: 1px solid #8b5a2b;
-    border-radius: 5px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 20px;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.card.red {
-    color: #a93226;
-}
-
-.card.black {
-    color: #2f2f2f;
-}
-
-.card.selected {
-    border: 2px solid #d4a017;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    transform: translateY(-10px);
-}
-
-.card.animate-slide {
-    animation: slideToTable 0.5s ease-out forwards;
-}
-
-.card.animate-flip {
-    animation: flipCard 0.5s ease forwards;
-}
-
-@keyframes slideToTable {
-    from { transform: translate(var(--start-x), var(--start-y)); }
-    to { transform: translate(0, 0); }
-}
-
-@keyframes flipCard {
-    from { transform: perspective(1000px) rotateY(180deg); }
-    to { transform: perspective(1000px) rotateY(0deg); }
-}
-
-#player-hand {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    justify-content: center;
-    max-width: 100%;
-    position: absolute;
-    bottom: 10px;
-    z-index: 2;
-}
-
-#player-hand .player-label {
-    position: absolute;
-    top: -25px;
-    background: #3c2f2f;
-    color: #f5e6cc;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 14px;
-}
-
-#opponents {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-}
-
-.opponent {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-}
-
-.opponent-hand {
-    display: flex;
-    justify-content: center;
-    position: relative;
-    width: 150px;
-    height: 60px;
-}
-
-.opponent-card {
-    width: 36px;
-    height: 48px;
-    background-color: #d4a576;
-    border: 1px solid #8b5a2b;
-    border-radius: 5px;
-    position: absolute;
-    transform-origin: bottom center;
-}
-
-#ai1 {
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-#ai2 {
-    left: 10px;
-    top: 180px;
-}
-
-#ai3 {
-    right: 10px;
-    top: 180px;
-}
-
-.player-label {
-    background: #3c2f2f;
-    color: #f5e6cc;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 14px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-#notification {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 20px 40px;
-    font-size: 24px;
-    color: #f5e6cc;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
-    opacity: 0;
-    transition: opacity 0.5s ease-in-out;
-}
-
-#notification.show {
-    opacity: 1;
-}
-
-#notification.win {
-    background: #3c2f2f;
-}
-
-#notification.lose {
-    background: #a93226;
-}
-
-.history-box {
-    margin-top: 20px;
-    width: 100%;
-}
-
-#history {
-    max-height: 100px;
-    overflow-y: auto;
-    white-space: normal;
-}
-
-#play-btn, #pass-btn, #auto-btn, #reset-btn {
-    background-color: #d4a017;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-#play-btn:hover, #pass-btn:hover, #auto-btn:hover, #reset-btn:hover {
-    background-color: #e6b923;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-
-@media (max-width: 768px) {
-    #game-container {
-        height: 400px;
+function initGame() {
+    console.log('初始化遊戲，模式:', isAutoPlay ? '自動' : '手動');
+    try {
+        startSound.play().catch(e => console.warn('無法播放 start.mp3:', e));
+    } catch (e) {
+        console.warn('音效初始化錯誤:', e);
     }
-    #table {
-        width: 90%;
-        height: 35%;
+    deck = [];
+    for (let suit of suits) {
+        for (let rank of ranks) {
+            deck.push({ suit, rank });
+        }
     }
-    .card {
-        width: 50px;
-        height: 70px;
-        font-size: 16px;
+    console.log('生成牌組:', deck.length, '張牌');
+    deck.sort(() => Math.random() - 0.5);
+    hands = [[], [], [], []];
+    for (let i = 0; i < 52; i++) {
+        hands[i % 4].push(deck[i]);
     }
-    .opponent-card {
-        width: 30px;
-        height: 40px;
+    hands.forEach(hand => {
+        hand.sort(compareCards);
+        console.log(`手牌 ${hand.length} 張:`, hand);
+    });
+    currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♣'));
+    if (currentPlayer === -1) {
+        console.log('未找到♣3，隨機分配起始玩家');
+        currentPlayer = 0;
     }
-    #player-hand .player-label, .opponent .player-label {
-        font-size: 12px;
+    tableCards = [];
+    lastPlayed = null;
+    selectedCards = [];
+    passes = 0;
+    moveHistory = [];
+    timer = 30;
+    isAutoPlay = false;
+    gameEnded = false;
+    isFirstRound = true;
+    updateUI();
+    updateStatus();
+    updateHistory();
+    startTimer();
+    if (currentPlayer !== 0) {
+        setTimeout(aiPlay, 2500);
+    } else if (isAutoPlay) {
+        setTimeout(autoPlay, 2500);
     }
 }
+
+function compareCards(a, b) {
+    if (rankOrder[a.rank] !== rankOrder[b.rank]) {
+        return rankOrder[b.rank] - rankOrder[a.rank];
+    }
+    return suitOrder[b.suit] - suitOrder[a.suit];
+}
+
+function updateUI() {
+    try {
+        console.log('更新 UI，玩家手牌數:', hands[0]?.length || 0);
+        const playerHand = document.getElementById('player-hand');
+        playerHand.innerHTML = '<div class="player-label" style="position: absolute; top: -30px;">玩家</div>';
+        if (hands[0] && hands[0].length > 0) {
+            hands[0].forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.classList.add('card');
+                cardDiv.classList.add(['♥', '♦'].includes(card.suit) ? 'red' : 'black');
+                if (selectedCards.includes(index)) {
+                    cardDiv.classList.add('selected');
+                }
+                cardDiv.textContent = `${card.suit}${card.rank}`;
+                cardDiv.onclick = () => toggleCardSelection(index);
+                playerHand.appendChild(cardDiv);
+            });
+        } else {
+            console.warn('玩家手牌為空，顯示提示');
+            const emptyDiv = document.createElement('div');
+            emptyDiv.textContent = '無手牌';
+            emptyDiv.style.fontSize = 'min(4vw, 20px)';
+            emptyDiv.style.color = '#333';
+            playerHand.appendChild(emptyDiv);
+        }
+
+        for (let i = 1; i <= 3; i++) {
+            const aiHand = document.getElementById(`ai${i}-hand`);
+            aiHand.innerHTML = '';
+            if (hands[i] && hands[i].length > 0) {
+                const cardCount = hands[i].length;
+                const maxAngle = 60;
+                const angleStep = cardCount > 1 ? Math.min(maxAngle / (cardCount - 1), 10) : 0;
+                hands[i].forEach((card, j) => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.classList.add('opponent-card');
+                    const angle = (j - (cardCount - 1) / 2) * angleStep;
+                    cardDiv.style.transform = `rotate(${angle}deg)`;
+                    cardDiv.style.left = `${j * 10}px`;
+                    aiHand.appendChild(cardDiv);
+                });
+            }
+        }
+
+        const tableDiv = document.getElementById('table-cards');
+        tableDiv.innerHTML = '';
+        if (tableCards && tableCards.length > 0) {
+            tableCards.forEach(card => {
+                const cardDiv = document.createElement('div');
+                cardDiv.classList.add('card');
+                cardDiv.classList.add(['♥', '♦'].includes(card.suit) ? 'red' : 'black');
+                cardDiv.textContent = `${card.suit}${card.rank}`;
+                tableDiv.appendChild(cardDiv);
+            });
+        }
+
+        document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI 1: ${scores[1]} | AI 2: ${scores[2]} | AI 3: ${scores[3]}`;
+    } catch (e) {
+        console.error('更新 UI 錯誤:', e);
+        showNotification('UI 渲染失敗，請重試！', 'lose');
+    }
+}
+
+function showNotification(message, type) {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.className = `show ${type}`;
+    setTimeout(() => {
+        notification.className = '';
+    }, 2000);
+}
+
+function updateStatus() {
+    try {
+        const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
+        if (hands.some(hand => hand && hand.length === 0) && !gameEnded) {
+            gameEnded = true;
+            const winner = hands.findIndex(hand => hand && hand.length === 0);
+            if (winner === 0) {
+                try {
+                    winSound.play().catch(e => console.warn('無法播放 win.mp3:', e));
+                } catch (e) {
+                    console.warn('勝利音效錯誤:', e);
+                }
+                showNotification('您贏了！', 'win');
+            } else {
+                try {
+                    lostSound.play().catch(e => console.warn('無法播放 lost.mp3:', e));
+                } catch (e) {
+                    console.warn('失敗音效錯誤:', e);
+                }
+                showNotification('您輸了！', 'lose');
+            }
+            calculateScores();
+            clearInterval(timerInterval);
+            setTimeout(resetGame, 3000);
+        } else {
+            document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}${isAutoPlay && currentPlayer === 0 ? ' (電腦代玩)' : ''}`;
+        }
+    } catch (e) {
+        console.error('更新狀態錯誤:', e);
+    }
+}
+
+function startTimer() {
+    try {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
+        timer = 30;
+        document.getElementById('timer').textContent = `計時器: ${timer}秒`;
+        timerInterval = setInterval(() => {
+            timer--;
+            document.getElementById('timer').textContent = `計時器: ${timer}秒`;
+            if (timer <= 0) {
+                console.log('計時器到達 0，自動過牌');
+                pass();
+            }
+        }, 1000);
+        console.log('計時器啟動，初始值:', timer);
+    } catch (e) {
+        console.error('計時器錯誤:', e);
+        showNotification('計時器初始化失敗！', 'lose');
+    }
+}
+
+function updateHistory() {
+    try {
+        const historyDiv = document.getElementById('history');
+        historyDiv.innerHTML = moveHistory.map((move, i) => `${i + 1}. ${move}`).join('<br>');
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+    } catch (e) {
+        console.error('更新歷史錯誤:', e);
+    }
+}
+
+function toggleCardSelection(index) {
+    try {
+        if (currentPlayer !== 0 || isAutoPlay) {
+            console.log('非玩家回合或自動模式，無法選牌');
+            return;
+        }
+        const idx = selectedCards.indexOf(index);
+        if (idx === -1) {
+            selectedCards.push(index);
+        } else {
+            selectedCards.splice(idx, 1);
+        }
+        console.log('選牌更新:', selectedCards);
+        updateUI();
+    } catch (e) {
+        console.error('選牌錯誤:', e);
+    }
+}
+
+function playCards() {
+    try {
+        if (currentPlayer !== 0 || isAutoPlay) {
+            console.log('非玩家回合或自動模式，無法出牌');
+            showNotification('現在不是您的回合！', 'lose');
+            return;
+        }
+        if (selectedCards.length === 0) {
+            showNotification('請選擇卡牌！', 'lose');
+            return;
+        }
+        const cards = selectedCards.map(i => hands[0][i]);
+        console.log('玩家嘗試出牌:', cards);
+        const combo = getCombination(cards);
+        if (!combo) {
+            showNotification('無效組合！', 'lose');
+            selectedCards = [];
+            updateUI();
+            return;
+        }
+        if (isFirstRound && !cards.some(card => card.rank === '3' && card.suit === '♣')) {
+            showNotification('第一輪必須包含♣3！', 'lose');
+            selectedCards = [];
+            updateUI();
+            return;
+        }
+        if (lastPlayed && !canBeat(combo, lastPlayed)) {
+            showNotification('出牌必須大於桌面上的牌！', 'lose');
+            selectedCards = [];
+            updateUI();
+            return;
+        }
+        if (combo.type !== 'single') {
+            playComboSound(combo.type);
+        }
+        animateCards(cards, 'player', combo.type);
+        moveHistory.push(`玩家出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+        selectedCards.sort((a, b) => b - a);
+        for (let i of selectedCards) {
+            console.log(`移除玩家手牌索引 ${i}:`, hands[0][i]);
+            hands[0].splice(i, 1);
+        }
+        console.log('出牌後玩家手牌:', hands[0]);
+        selectedCards = [];
+        passes = 0;
+        if (isFirstRound && cards.some(card => card.rank === '3' && card.suit === '♣')) {
+            isFirstRound = false;
+        }
+        nextPlayer();
+    } catch (e) {
+        console.error('出牌錯誤:', e);
+        showNotification('出牌失敗，請重試！', 'lose');
+    }
+}
+
+function pass() {
+    try {
+        if (currentPlayer !== 0 || isAutoPlay) {
+            console.log('非玩家回合或自動模式，無法過牌');
+            return;
+        }
+        if (isFirstRound && hands[0].some(card => card.rank === '3' && card.suit === '♣')) {
+            showNotification('持有梅花三必須出牌！', 'lose');
+            return;
+        }
+        try {
+            passSound.play().catch(e => console.warn('無法播放 pass.mp3:', e));
+        } catch (e) {
+            console.warn('過牌音效錯誤:', e);
+        }
+        moveHistory.push('玩家: 過牌');
+        passes++;
+        if (passes >= 3) {
+            tableCards = [];
+            lastPlayed = null;
+            passes = 0;
+            isFirstRound = false;
+        }
+        nextPlayer();
+    } catch (e) {
+        console.error('過牌錯誤:', e);
+    }
+}
+
+function autoPlay() {
+    try {
+        if (currentPlayer !== 0 || !isAutoPlay) return;
+        console.log('執行自動出牌，模式: 自動');
+        const hand = hands[0];
+        if (!hand) return;
+        if (isFirstRound) {
+            let validCombos = getAllCombinations(hand).filter(combo => 
+                combo.cards.some(card => card.rank === '3' && card.suit === '♣')
+            );
+            if (validCombos.length > 0) {
+                const combo = validCombos[0];
+                if (combo.type !== 'single') {
+                    playComboSound(combo.type);
+                }
+                animateCards(combo.cards, 'player', combo.type);
+                moveHistory.push(`玩家 (電腦代玩) 出: ${combo.type} (${combo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                tableCards = combo.cards;
+                lastPlayed = combo;
+                hands[0] = hand.filter(card => !combo.cards.includes(card));
+                passes = 0;
+                isFirstRound = false;
+                nextPlayer();
+                return;
+            }
+        }
+        const combos = getAllCombinations(hand);
+        let validCombo = null;
+        for (let combo of combos) {
+            if (!lastPlayed || canBeat(combo, lastPlayed)) {
+                validCombo = combo;
+                break;
+            }
+        }
+        if (validCombo) {
+            if (validCombo.type !== 'single') {
+                playComboSound(validCombo.type);
+            }
+            animateCards(validCombo.cards, 'player', combo.type);
+            moveHistory.push(`玩家 (電腦代玩) 出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+            tableCards = validCombo.cards;
+            lastPlayed = validCombo;
+            hands[0] = hand.filter(card => !combo.cards.includes(card));
+            passes = 0;
+        } else {
+            if (isFirstRound && hand.some(card => card.rank === '3' && card.suit === '♣')) {
+                showNotification('持有梅花三必須出牌！', 'lose');
+                return;
+            }
+            try {
+                passSound.play().catch(e => console.warn('無法播放 pass.mp3:', e));
+            } catch (e) {
+                console.warn('過牌音效錯誤:', e);
+            }
+            moveHistory.push('玩家 (電腦代玩): 過牌');
+            passes++;
+            if (passes >= 3) {
+                tableCards = [];
+                lastPlayed = null;
+                passes = 0;
+                isFirstRound = false;
+            }
+        }
+        nextPlayer();
+    } catch (e) {
+        console.error('自動出牌錯誤:', e);
+    }
+}
+
+function toggleAutoPlay() {
+    try {
+        isAutoPlay = !isAutoPlay;
+        console.log('切換模式，isAutoPlay:', isAutoPlay);
+        document.getElementById('status').textContent = isAutoPlay ? '輪到 玩家 (電腦代玩)' : '輪到 玩家';
+        if (isAutoPlay && currentPlayer === 0) {
+            setTimeout(autoPlay, 2500);
+        } else {
+            startTimer(); // 切回手動模式時重啟計時器
+        }
+    } catch (e) {
+        console.error('切換自動模式錯誤:', e);
+    }
+}
+
+function nextPlayer() {
+    try {
+        currentPlayer = (currentPlayer + 1) % 4;
+        console.log('切換到玩家:', currentPlayer);
+        updateUI();
+        updateStatus();
+        if (hands[currentPlayer] && hands[currentPlayer].length === 0) {
+            calculateScores();
+            return;
+        }
+        startTimer();
+        if (currentPlayer !== 0) {
+            setTimeout(aiPlay, 2500);
+        } else if (isAutoPlay) {
+            setTimeout(autoPlay, 2500);
+        }
+    } catch (e) {
+        console.error('下一玩家錯誤:', e);
+    }
+}
+
+function aiPlay() {
+    try {
+        const hand = hands[currentPlayer];
+        if (!hand) return;
+        const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
+        if (isFirstRound && !hand.some(card => card.rank === '3' && card.suit === '♣')) {
+            try {
+                passSound.play().catch(e => console.warn('無法播放 pass.mp3:', e));
+            } catch (e) {
+                console.warn('過牌音效錯誤:', e);
+            }
+            moveHistory.push(`${names[currentPlayer]}: 過牌`);
+            passes++;
+            if (passes >= 3) {
+                tableCards = [];
+                lastPlayed = null;
+                passes = 0;
+                isFirstRound = false;
+            }
+            nextPlayer();
+            return;
+        }
+        if (isFirstRound) {
+            let validCombos = getAllCombinations(hand).filter(combo => 
+                combo.cards.some(card => card.rank === '3' && card.suit === '♣')
+            );
+            if (validCombos.length > 0) {
+                const combo = validCombos[0];
+                if (combo.type !== 'single') {
+                    playComboSound(combo.type);
+                }
+                animateCards(combo.cards, `ai${currentPlayer}`, combo.type);
+                moveHistory.push(`${names[currentPlayer]}出: ${combo.type} (${combo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                tableCards = combo.cards;
+                lastPlayed = combo;
+                hands[currentPlayer] = hand.filter(card => !combo.cards.includes(card));
+                passes = 0;
+                isFirstRound = false;
+                nextPlayer();
+                return;
+            }
+        }
+        const combos = getAllCombinations(hand);
+        let validCombo = null;
+        for (let combo of combos) {
+            if (!lastPlayed || canBeat(combo, lastPlayed)) {
+                validCombo = combo;
+                break;
+            }
+        }
+        if (validCombo) {
+            if (validCombo.type !== 'single') {
+                playComboSound(combo.type);
+            }
+            animateCards(validCombo.cards, `ai${currentPlayer}`, combo.type);
+            moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+            tableCards = validCombo.cards;
+            lastPlayed = validCombo;
+            hands[currentPlayer] = hand.filter(card => !combo.cards.includes(card));
+            passes = 0;
+        } else {
+            try {
+                passSound.play().catch(e => console.warn('無法播放 pass.mp3:', e));
+            } catch (e) {
+                console.warn('過牌音效錯誤:', e);
+            }
+            moveHistory.push(`${names[currentPlayer]}: 過牌`);
+            passes++;
+            if (passes >= 3) {
+                tableCards = [];
+                lastPlayed = null;
+                passes = 0;
+                isFirstRound = false;
+            }
+        }
+        nextPlayer();
+    } catch (e) {
+        console.error('AI 出牌錯誤:', e);
+    }
+}
+
+function playComboSound(type) {
+    try {
+        const sounds = {
+            'pair': pairSound,
+            'straight': straightSound,
+            'straightFlush': straightFlushSound,
+            'fourOfAKind': fourOfAKindSound,
+            'fullHouse': fullHouseSound
+        };
+        if (sounds[type]) {
+            sounds[type].play().catch(e => console.warn(`無法播放 ${type} 音效:`, e));
+        } else {
+            console.warn(`無效的牌型音效: ${type}`);
+        }
+    } catch (e) {
+        console.error('播放音效錯誤:', e);
+    }
+}
+
+function animateCards(cards, source, comboType) {
+    try {
+        const tableDiv = document.getElementById('table-cards');
+        tableDiv.innerHTML = '';
+        cards.forEach(card => {
+            const cardDiv = document.createElement('div');
+            cardDiv.classList.add('card', ['♥', '♦'].includes(card.suit) ? 'red' : 'black', 'animate-slide', 'animate-flip');
+            cardDiv.textContent = `${card.suit}${card.rank}`;
+            let startX = 0, startY = 0;
+            if (source === 'player') {
+                startX = 0;
+                startY = 200;
+            } else if (source === 'ai1') {
+                startX = 0;
+                startY = -200;
+            } else if (source === 'ai2') {
+                startX = -300;
+                startY = 0;
+            } else if (source === 'ai3') {
+                startX = 300;
+                startY = 0;
+            }
+            cardDiv.style.setProperty('--start-x', `${startX}px`);
+            cardDiv.style.setProperty('--start-y', `${startY}px`);
+            cardDiv.style.transform = `translate(${startX}px, ${startY}px) rotateY(180deg)`;
+            tableDiv.appendChild(cardDiv);
+            setTimeout(() => {
+                cardDiv.style.transform = 'translate(0, 0) rotateY(0deg)';
+                cardDiv.classList.remove('animate-slide', 'animate-flip');
+            }, 50);
+        });
+        setTimeout(() => {
+            tableCards = cards;
+            updateUI();
+            console.log('動畫完成，更新桌面牌:', tableCards);
+        }, 500);
+    } catch (e) {
+        console.error('卡牌動畫錯誤:', e);
+        updateUI();
+    }
+}
+
+function getCombination(cards) {
+    try {
+        cards.sort(compareCards);
+        const counts = {};
+        cards.forEach(card => {
+            counts[card.rank] = (counts[card.rank] || 0) + 1;
+        });
+
+        if (cards.length === 1) {
+            return { type: 'single', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards };
+        }
+        if (cards.length === 2 && cards[0].rank === cards[1].rank) {
+            return { type: 'pair', value: rankOrder[cards[0].rank], suit: Math.max(suitOrder[cards[0].suit], suitOrder[cards[1].suit]), cards };
+        }
+        if (cards.length === 5) {
+            if (isStraight(cards)) {
+                let value, suit;
+                const sequence = cards.map(c => c.rank).sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
+                if (sequence === '23456') {
+                    value = 14;
+                    suit = suitOrder[cards.find(c => c.rank === '2').suit];
+                } else if (sequence === 'A2345') {
+                    value = 0;
+                    suit = suitOrder[cards.find(c => c.rank === '5').suit];
+                } else {
+                    value = rankOrder[cards[0].rank];
+                    suit = suitOrder[cards[0].suit];
+                }
+                return { type: 'straight', value, suit, cards };
+            }
+            if (Object.values(counts).sort().join('') === '23') {
+                let tripleRank = Object.keys(counts).find(k => counts[k] === 3);
+                return { type: 'fullHouse', value: rankOrder[tripleRank], cards };
+            }
+        }
+        if (cards.length === 5 && Object.values(counts).includes(4)) {
+            let fourRank = Object.keys(counts).find(k => counts[k] === 4);
+            return { type: 'fourOfAKind', value: rankOrder[fourRank], cards };
+        }
+        if (cards.length === 7) {
+            let fiveCards = cards.slice(0, 5);
+            fiveCards.sort(compareCards);
+            if (isStraightFlush(fiveCards)) {
+                let value, suit;
+                const sequence = fiveCards.map(c => c.rank).sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
+                if (sequence === '23456') {
+                    value = 14;
+                    suit = suitOrder[fiveCards.find(c => c.rank === '2').suit];
+                } else if (sequence === 'A2345') {
+                    value = 0;
+                    suit = suitOrder[fiveCards.find(c => c.rank === '5').suit];
+                } else {
+                    value = rankOrder[fiveCards[0].rank];
+                    suit = suitOrder[fiveCards[0].suit];
+                }
+                return { type: 'straightFlush', value, suit, cards };
+            }
+        }
+        return null;
+    } catch (e) {
+        console.error('牌型檢查錯誤:', e);
+        return null;
+    }
+}
+
+function canBeat(newCombo, oldCombo) {
+    try {
+        const typeOrder = { 'straightFlush': 5, 'fourOfAKind': 4, 'fullHouse': 3, 'straight': 2, 'pair': 1, 'single': 0 };
+
+        if (newCombo.type === 'pair') {
+            if (oldCombo.type === 'pair') {
+                if (newCombo.value !== oldCombo.value) {
+                    return newCombo.value > oldCombo.value;
+                }
+                return newCombo.suit > oldCombo.suit;
+            }
+            if (oldCombo.type === 'fourOfAKind' || oldCombo.type === 'straightFlush') {
+                return false;
+            }
+            showNotification('一對只能被一對、鐵支或同花順壓！', 'lose');
+            return false;
+        }
+
+        if (newCombo.type === 'fullHouse') {
+            if (oldCombo.type === 'pair') {
+                showNotification('葫蘆和一對不能互壓！', 'lose');
+                return false;
+            }
+            if (oldCombo.type === 'fullHouse') {
+                return newCombo.value > oldCombo.value;
+            }
+            if (oldCombo.type === 'fourOfAKind' || oldCombo.type === 'straightFlush') {
+                return false;
+            }
+            return true;
+        }
+
+        if (typeOrder[newCombo.type] > typeOrder[oldCombo.type]) {
+            return true;
+        }
+        if (typeOrder[newCombo.type] < typeOrder[oldCombo.type]) {
+            return false;
+        }
+        if (newCombo.type === 'single') {
+            if (newCombo.value !== oldCombo.value) {
+                return newCombo.value > oldCombo.value;
+            }
+            return newCombo.suit > oldCombo.suit;
+        }
+        if (newCombo.type === 'straight' || newCombo.type === 'straightFlush') {
+            return newCombo.value > oldCombo.value;
+        }
+        if (newCombo.type === 'fourOfAKind') {
+            return newCombo.value > oldCombo.value;
+        }
+        return false;
+    } catch (e) {
+        console.error('比較牌型錯誤:', e);
+        return false;
+    }
+}
+
+function getAllCombinations(hand) {
+    try {
+        let combos = [];
+        hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.rank], suit: suitOrder[card.suit], cards: [card] }));
+        for (let i = 0; i < hand.length - 1; i++) {
+            if (hand[i].rank === hand[i + 1].rank) {
+                combos.push({ type: 'pair', value: rankOrder[hand[i].rank], suit: Math.max(suitOrder[hand[i].suit], suitOrder[hand[i + 1].suit]), cards: [hand[i], hand[i + 1]] });
+            }
+        }
+        if (hand.length >= 5) {
+            const fiveCombos = getFiveCardCombinations(hand);
+            combos.push(...fiveCombos);
+        }
+        if (hand.length >= 7) {
+            const sevenCombos = getSevenCardCombinations(hand);
+            combos.push(...sevenCombos);
+        }
+        return combos.sort((a, b) => {
+            const typeOrder = { 'straightFlush': 5, 'fourOfAKind': 4, 'fullHouse': 3, 'straight': 2, 'pair': 1, 'single': 0 };
+            if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[b.type] - typeOrder[a.type];
+            if (a.value !== b.value) return b.value - a.value;
+            if (a.suit && b.suit) return b.suit - a.suit;
+            return 0;
+        });
+    } catch (e) {
+        console.error('生成組合錯誤:', e);
+        return [];
+    }
+}
+
+function getFiveCardCombinations(hand) {
+    try {
+        const combos = [];
+        const combinations = getCombinations(hand, 5);
+        combinations.forEach(cards => {
+            cards.sort(compareCards);
+            if (isStraight(cards)) {
+                let value, suit;
+                const sequence = cards.map(c => c.rank).sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
+                if (sequence === '23456') {
+                    value = 14;
+                    suit = suitOrder[cards.find(c => c.rank === '2').suit];
+                } else if (sequence === 'A2345') {
+                    value = 0;
+                    suit = suitOrder[cards.find(c => c.rank === '5').suit];
+                } else {
+                    value = rankOrder[cards[0].rank];
+                    suit = suitOrder[cards[0].suit];
+                }
+                combos.push({ type: 'straight', value, suit, cards });
+            }
+            const counts = {};
+            cards.forEach(c => counts[c.rank] = (counts[c.rank] || 0) + 1);
+            if (Object.values(counts).sort().join('') === '23') {
+                let tripleRank = Object.keys(counts).find(k => counts[k] === 3);
+                combos.push({ type: 'fullHouse', value: rankOrder[tripleRank], cards });
+            }
+            if (Object.values(counts).includes(4)) {
+                let fourRank = Object.keys(counts).find(k => counts[k] === 4);
+                combos.push({ type: 'fourOfAKind', value: rankOrder[fourRank], cards });
+            }
+        });
+        return combos;
+    } catch (e) {
+        console.error('生成五張牌組合錯誤:', e);
+        return [];
+    }
+}
+
+function getSevenCardCombinations(hand) {
+    try {
+        const combos = [];
+        const combinations = getCombinations(hand, 7);
+        combinations.forEach(cards => {
+            let fiveCards = cards.slice(0, 5);
+            fiveCards.sort(compareCards);
+            if (isStraightFlush(fiveCards)) {
+                let value, suit;
+                const sequence = fiveCards.map(c => c.rank).sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
+                if (sequence === '23456') {
+                    value = 14;
+                    suit = suitOrder[fiveCards.find(c => c.rank === '2').suit];
+                } else if (sequence === 'A2345') {
+                    value = 0;
+                    suit = suitOrder[fiveCards.find(c => c.rank === '5').suit];
+                } else {
+                    value = rankOrder[fiveCards[0].rank];
+                    suit = suitOrder[fiveCards[0].suit];
+                }
+                combos.push({ type: 'straightFlush', value, suit, cards });
+            }
+        });
+        return combos;
+    } catch (e) {
+        console.error('生成七張牌組合錯誤:', e);
+        return [];
+    }
+}
+
+function getCombinations(arr, k) {
+    try {
+        const result = [];
+        function combine(start, combo) {
+            if (combo.length === k) {
+                result.push([...combo]);
+                return;
+            }
+            for (let i = start; i < arr.length; i++) {
+                combo.push(arr[i]);
+                combine(i + 1, combo);
+                combo.pop();
+            }
+        }
+        combine(0, []);
+        return result;
+    } catch (e) {
+        console.error('生成組合錯誤:', e);
+        return [];
+    }
+}
+
+function isStraight(cards) {
+    try {
+        const validSequences = [
+            '23456', '34567', '45678', '56789', '678910', '78910J', '8910JQ', '910JQK', '10JQKA', 'A2345'
+        ];
+        let ranks = cards.map(card => card.rank);
+        let sequence = ranks.sort((a, b) => rankOrder[b] - rankOrder[a]).join('');
+        return validSequences.includes(sequence);
+    } catch (e) {
+        console.error('檢查順子錯誤:', e);
+        return false;
+    }
+}
+
+function isFlush(cards) {
+    try {
+        return cards.every(card => card.suit === cards[0].suit);
+    } catch (e) {
+        console.error('檢查同花錯誤:', e);
+        return false;
+    }
+}
+
+function isStraightFlush(cards) {
+    try {
+        return isStraight(cards) && isFlush(cards);
+    } catch (e) {
+        console.error('檢查同花順錯誤:', e);
+        return false;
+    }
+}
+
+function calculateScores() {
+    try {
+        let winner = hands.findIndex(hand => hand && hand.length === 0);
+        if (winner === -1) return;
+        let points = 0;
+        hands.forEach((hand, index) => {
+            if (index !== winner && hand) {
+                let count = hand.length;
+                let penalty = count <= 9 ? count : count <= 12 ? count * 2 : count * 3;
+                points += penalty;
+            }
+        });
+        scores[winner] += points;
+        updateUI();
+        updateStatus();
+        updateHistory();
+    } catch (e) {
+        console.error('計算分數錯誤:', e);
+    }
+}
+
+function resetGame() {
+    try {
+        console.log('重置遊戲，模式:', isAutoPlay ? '自動' : '手動');
+        hands = [[], [], [], []];
+        initGame();
+        updateUI();
+    } catch (e) {
+        console.error('重置遊戲錯誤:', e);
+        showNotification('重置失敗，請重新整理頁面！', 'lose');
+    }
+}
+
+// 確保音效在用戶交互後載入
+document.addEventListener('click', () => {
+    try {
+        startSound.load();
+        passSound.load();
+        pairSound.load();
+        straightSound.load();
+        straightFlushSound.load();
+        fourOfAKindSound.load();
+        fullHouseSound.load();
+        winSound.load();
+        lostSound.load();
+        console.log('音效檔案預載完成');
+    } catch (e) {
+        console.warn('音效預載錯誤:', e);
+    }
+}, { once: true });
+
+initGame();
