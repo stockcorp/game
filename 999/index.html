@@ -244,7 +244,7 @@
     </div>
 
     <script>
-        const suits = ['♠', '♥', '♣', '♦'];
+        const suits = ['♠', '♥', '♦', '♣'];
         const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
         const suitOrder = { '♠': 4, '♥': 3, '♦': 2, '♣': 1 };
         const rankOrder = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6, '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11, 'A': 12, '2': 13 };
@@ -261,6 +261,7 @@
         let timer = 30;
         let timerInterval = null;
         let isAutoPlay = false;
+        let gameEnded = false;
 
         const startSound = new Audio('start.mp3');
         const passSound = new Audio('pass.mp3');
@@ -287,7 +288,7 @@
                 hands[i % 4].push(deck[i]);
             }
             hands.forEach(hand => hand.sort(compareCards));
-            console.log('玩家手牌:', hands[0]); // 除錯用
+            console.log('玩家手牌:', hands[0]);
             currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♣'));
             if (currentPlayer === -1) currentPlayer = 0;
             tableCards = [];
@@ -297,6 +298,7 @@
             moveHistory = [];
             timer = 30;
             isAutoPlay = false;
+            gameEnded = false;
             updateUI();
             updateStatus();
             updateHistory();
@@ -372,7 +374,8 @@
 
         function updateStatus() {
             const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
-            if (hands.some(hand => hand && hand.length === 0)) {
+            if (hands.some(hand => hand && hand.length === 0) && !gameEnded) {
+                gameEnded = true;
                 const winner = hands.findIndex(hand => hand && hand.length === 0);
                 if (winner === 0) {
                     winSound.play().catch(e => console.log('Win sound error:', e));
@@ -383,6 +386,7 @@
                 }
                 calculateScores();
                 clearInterval(timerInterval);
+                setTimeout(resetGame, 1000);
             } else {
                 document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}${isAutoPlay && currentPlayer === 0 ? ' (電腦代玩)' : ''}`;
             }
@@ -476,17 +480,19 @@
             const hand = hands[0];
             if (!hand) return;
             if (!lastPlayed) {
-                let cards = hand.filter(card => card.rank === '3' && card.suit === '♣');
-                if (cards.length > 0) {
-                    const combo = getCombination(cards);
+                let validCombos = getAllCombinations(hand).filter(combo => 
+                    combo.cards.some(card => card.rank === '3' && card.suit === '♣')
+                );
+                if (validCombos.length > 0) {
+                    const combo = validCombos[0];
                     if (combo.type !== 'single') {
                         playComboSound(combo.type);
                     }
-                    animateCards(cards, 'player', combo.type);
-                    moveHistory.push(`玩家 (電腦代玩) 出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
-                    tableCards = cards;
+                    animateCards(combo.cards, 'player', combo.type);
+                    moveHistory.push(`玩家 (電腦代玩) 出: ${combo.type} (${combo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                    tableCards = combo.cards;
                     lastPlayed = combo;
-                    hands[0] = hand.filter(card => !cards.includes(card));
+                    hands[0] = hand.filter(card => !combo.cards.includes(card));
                     passes = 0;
                     nextPlayer();
                     return;
@@ -535,7 +541,6 @@
             currentPlayer = (currentPlayer + 1) % 4;
             updateUI();
             updateStatus();
-            updateHistory();
             if (hands[currentPlayer] && hands[currentPlayer].length === 0) {
                 calculateScores();
                 return;
@@ -553,17 +558,19 @@
             if (!hand) return;
             const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
             if (!lastPlayed) {
-                let cards = hand.filter(card => card.rank === '3' && card.suit === '♣');
-                if (cards.length > 0) {
-                    const combo = getCombination(cards);
+                let validCombos = getAllCombinations(hand).filter(combo => 
+                    combo.cards.some(card => card.rank === '3' && card.suit === '♣')
+                );
+                if (validCombos.length > 0) {
+                    const combo = validCombos[0];
                     if (combo.type !== 'single') {
                         playComboSound(combo.type);
                     }
-                    animateCards(cards, `ai${currentPlayer}`, combo.type);
-                    moveHistory.push(`${names[currentPlayer]}出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
-                    tableCards = cards;
+                    animateCards(combo.cards, `ai${currentPlayer}`, combo.type);
+                    moveHistory.push(`${names[currentPlayer]}出: ${combo.type} (${combo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                    tableCards = combo.cards;
                     lastPlayed = combo;
-                    hands[currentPlayer] = hand.filter(card => !cards.includes(card));
+                    hands[currentPlayer] = hand.filter(card => !combo.cards.includes(card));
                     passes = 0;
                     nextPlayer();
                     return;
@@ -651,36 +658,71 @@
 
         function getCombination(cards) {
             cards.sort(compareCards);
+            const counts = {};
+            cards.forEach(card => {
+                counts[card.rank] = (counts[card.rank] || 0) + 1;
+            });
+
             if (cards.length === 1) {
                 return { type: 'single', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards };
             }
             if (cards.length === 2 && cards[0].rank === cards[1].rank) {
                 return { type: 'pair', value: rankOrder[cards[0].rank], suit: Math.max(suitOrder[cards[0].suit], suitOrder[cards[1].suit]), cards };
             }
+            if (cards.length === 3 && Object.values(counts).includes(3)) {
+                return { type: 'threeOfAKind', value: rankOrder[cards[0].rank], cards };
+            }
             if (cards.length === 5) {
-                if (isStraightFlush(cards)) return { type: 'straightFlush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards };
-                if (isFourOfAKind(cards)) return { type: 'fourOfAKind', value: rankOrder[cards[1].rank], cards };
-                if (isFullHouse(cards)) {
-                    let ranks = cards.map(c => rankOrder[c.rank]);
-                    let counts = {};
-                    ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
-                    let tripleValue = parseInt(Object.keys(counts).find(k => counts[k] === 3));
-                    return { type: 'fullHouse', value: tripleValue, cards };
+                if (isStraight(cards)) {
+                    let value, suit;
+                    if (cards.map(c => c.rank).join('') === '23456') {
+                        value = 14; // 最大順子
+                        suit = suitOrder[cards.find(c => c.rank === '2').suit];
+                    } else if (cards.map(c => c.rank).join('') === 'A2345') {
+                        value = 0; // 最小順子
+                        suit = suitOrder[cards.find(c => c.rank === '5').suit];
+                    } else {
+                        value = rankOrder[cards[0].rank];
+                        suit = suitOrder[cards[0].suit];
+                    }
+                    return { type: 'straight', value, suit, cards };
                 }
-                if (isStraight(cards)) return { type: 'straight', value: rankOrder[cards[0].rank], cards };
+                if (Object.values(counts).sort().join('') === '23') {
+                    let tripleRank = Object.keys(counts).find(k => counts[k] === 3);
+                    return { type: 'fullHouse', value: rankOrder[tripleRank], cards };
+                }
+            }
+            if (cards.length === 5 && Object.values(counts).includes(4)) {
+                let fourRank = Object.keys(counts).find(k => counts[k] === 4);
+                return { type: 'fourOfAKind', value: rankOrder[fourRank], cards };
+            }
+            if (cards.length === 7) {
+                let fiveCards = cards.slice(0, 5);
+                fiveCards.sort(compareCards);
+                if (isStraightFlush(fiveCards)) {
+                    let value, suit;
+                    if (fiveCards.map(c => c.rank).join('') === '23456') {
+                        value = 14;
+                        suit = suitOrder[fiveCards.find(c => c.rank === '2').suit];
+                    } else if (fiveCards.map(c => c.rank).join('') === 'A2345') {
+                        value = 0;
+                        suit = suitOrder[fiveCards.find(c => c.rank === '5').suit];
+                    } else {
+                        value = rankOrder[fiveCards[0].rank];
+                        suit = suitOrder[fiveCards[0].suit];
+                    }
+                    return { type: 'straightFlush', value, suit, cards };
+                }
             }
             return null;
         }
 
         function canBeat(newCombo, oldCombo) {
-            const typeOrder = { 'straightFlush': 6, 'fourOfAKind': 5, 'straight': 4, 'fullHouse': 3, 'pair': 2, 'single': 1 };
-            if (newCombo.type === 'straightFlush' && oldCombo.type !== 'straightFlush') {
+            const typeOrder = { 'straightFlush': 7, 'fourOfAKind': 6, 'fullHouse': 5, 'straight': 4, 'threeOfAKind': 3, 'pair': 2, 'single': 1 };
+            if (typeOrder[newCombo.type] > typeOrder[oldCombo.type]) {
                 return true;
             }
-            if (newCombo.type === 'fourOfAKind' && oldCombo.type !== 'straightFlush') {
-                return true;
-            }
-            if (newCombo.type !== oldCombo.type && newCombo.type !== 'fourOfAKind' && newCombo.type !== 'straightFlush') {
+            if (typeOrder[newCombo.type] < typeOrder[oldCombo.type]) {
                 return false;
             }
             if (newCombo.type === 'single' || newCombo.type === 'pair') {
@@ -689,16 +731,10 @@
                 }
                 return newCombo.suit > oldCombo.suit;
             }
-            if (newCombo.type === 'straightFlush') {
-                if (newCombo.value !== oldCombo.value) {
-                    return newCombo.value > oldCombo.value;
-                }
-                return newCombo.suit > oldCombo.suit;
-            }
-            if (newCombo.type === 'straight' || newCombo.type === 'fullHouse') {
+            if (newCombo.type === 'threeOfAKind' || newCombo.type === 'fullHouse' || newCombo.type === 'fourOfAKind') {
                 return newCombo.value > oldCombo.value;
             }
-            if (newCombo.type === 'fourOfAKind') {
+            if (newCombo.type === 'straight' || newCombo.type === 'straightFlush') {
                 return newCombo.value > oldCombo.value;
             }
             return false;
@@ -712,15 +748,24 @@
                     combos.push({ type: 'pair', value: rankOrder[hand[i].rank], suit: Math.max(suitOrder[hand[i].suit], suitOrder[hand[i + 1].suit]), cards: [hand[i], hand[i + 1]] });
                 }
             }
+            for (let i = 0; i < hand.length - 2; i++) {
+                if (hand[i].rank === hand[i + 1].rank && hand[i].rank === hand[i + 2].rank) {
+                    combos.push({ type: 'threeOfAKind', value: rankOrder[hand[i].rank], cards: [hand[i], hand[i + 1], hand[i + 2]] });
+                }
+            }
             if (hand.length >= 5) {
                 const fiveCombos = getFiveCardCombinations(hand);
                 combos.push(...fiveCombos);
             }
+            if (hand.length >= 7) {
+                const sevenCombos = getSevenCardCombinations(hand);
+                combos.push(...sevenCombos);
+            }
             return combos.sort((a, b) => {
-                const typeOrder = { 'straightFlush': 6, 'fourOfAKind': 5, 'straight': 4, 'fullHouse': 4, 'pair': 2, 'single': 1 };
-                if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[a.type] - typeOrder[b.type];
-                if (a.value !== b.value) return a.value - b.value;
-                if (a.suit && b.suit) return a.suit - b.suit;
+                const typeOrder = { 'straightFlush': 7, 'fourOfAKind': 6, 'fullHouse': 5, 'straight': 4, 'threeOfAKind': 3, 'pair': 2, 'single': 1 };
+                if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[b.type] - typeOrder[a.type];
+                if (a.value !== b.value) return b.value - a.value;
+                if (a.suit && b.suit) return b.suit - a.suit;
                 return 0;
             });
         }
@@ -730,16 +775,54 @@
             const combinations = getCombinations(hand, 5);
             combinations.forEach(cards => {
                 cards.sort(compareCards);
-                if (isStraightFlush(cards)) combos.push({ type: 'straightFlush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards });
-                else if (isFourOfAKind(cards)) combos.push({ type: 'fourOfAKind', value: rankOrder[cards[1].rank], cards });
-                else if (isFullHouse(cards)) {
-                    let ranks = cards.map(c => rankOrder[c.rank]);
-                    let counts = {};
-                    ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
-                    let tripleValue = parseInt(Object.keys(counts).find(k => counts[k] === 3));
-                    combos.push({ type: 'fullHouse', value: tripleValue, cards });
+                if (isStraight(cards)) {
+                    let value, suit;
+                    if (cards.map(c => c.rank).join('') === '23456') {
+                        value = 14;
+                        suit = suitOrder[cards.find(c => c.rank === '2').suit];
+                    } else if (cards.map(c => c.rank).join('') === 'A2345') {
+                        value = 0;
+                        suit = suitOrder[cards.find(c => c.rank === '5').suit];
+                    } else {
+                        value = rankOrder[cards[0].rank];
+                        suit = suitOrder[cards[0].suit];
+                    }
+                    combos.push({ type: 'straight', value, suit, cards });
                 }
-                else if (isStraight(cards)) combos.push({ type: 'straight', value: rankOrder[cards[0].rank], cards });
+                const counts = {};
+                cards.forEach(c => counts[c.rank] = (counts[c.rank] || 0) + 1);
+                if (Object.values(counts).sort().join('') === '23') {
+                    let tripleRank = Object.keys(counts).find(k => counts[k] === 3);
+                    combos.push({ type: 'fullHouse', value: rankOrder[tripleRank], cards });
+                }
+                if (Object.values(counts).includes(4)) {
+                    let fourRank = Object.keys(counts).find(k => counts[k] === 4);
+                    combos.push({ type: 'fourOfAKind', value: rankOrder[fourRank], cards });
+                }
+            });
+            return combos;
+        }
+
+        function getSevenCardCombinations(hand) {
+            const combos = [];
+            const combinations = getCombinations(hand, 7);
+            combinations.forEach(cards => {
+                let fiveCards = cards.slice(0, 5);
+                fiveCards.sort(compareCards);
+                if (isStraightFlush(fiveCards)) {
+                    let value, suit;
+                    if (fiveCards.map(c => c.rank).join('') === '23456') {
+                        value = 14;
+                        suit = suitOrder[fiveCards.find(c => c.rank === '2').suit];
+                    } else if (fiveCards.map(c => c.rank).join('') === 'A2345') {
+                        value = 0;
+                        suit = suitOrder[fiveCards.find(c => c.rank === '5').suit];
+                    } else {
+                        value = rankOrder[fiveCards[0].rank];
+                        suit = suitOrder[fiveCards[0].suit];
+                    }
+                    combos.push({ type: 'straightFlush', value, suit, cards });
+                }
             });
             return combos;
         }
@@ -762,29 +845,16 @@
         }
 
         function isStraight(cards) {
-            let values = cards.map(card => rankOrder[card.rank]).sort((a, b) => b - a);
-            for (let i = 1; i < values.length; i++) {
-                if (values[i - 1] - values[i] !== 1) return false;
-            }
-            return true;
+            const validSequences = [
+                '23456', '34567', '45678', '56789', '678910', '78910J', '8910JQ', '910JQK', '10JQKA', 'A2345'
+            ];
+            let ranks = cards.map(card => card.rank).sort((a, b) => rankOrder[b] - rankOrder[a]);
+            let sequence = ranks.join('');
+            return validSequences.includes(sequence);
         }
 
         function isFlush(cards) {
             return cards.every(card => card.suit === cards[0].suit);
-        }
-
-        function isFullHouse(cards) {
-            let ranks = cards.map(card => card.rank);
-            let counts = {};
-            ranks.forEach(rank => counts[rank] = (counts[rank] || 0) + 1);
-            return Object.values(counts).sort().join('') === '23';
-        }
-
-        function isFourOfAKind(cards) {
-            let ranks = cards.map(card => card.rank);
-            let counts = {};
-            ranks.forEach(rank => counts[rank] = (counts[rank] || 0) + 1);
-            return Object.values(counts).includes(4);
         }
 
         function isStraightFlush(cards) {
@@ -809,7 +879,7 @@
         }
 
         function resetGame() {
-            scores = [0, 0, 0, 0];
+            console.log('重置遊戲...');
             initGame();
         }
 
