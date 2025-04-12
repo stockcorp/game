@@ -156,7 +156,7 @@
             padding: min(3vw, 15px);
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(220, 220, 220, 0.95));
             border-top: 1px solid #ccc;
-            box-shadow: 0 -4px min(2vw, 12px) rgba(0,0,0,0.2);
+            box-shadow: 0 -4px min(2игур: 2vw, 12px) rgba(0,0,0,0.2);
             z-index: 3;
             display: flex;
             flex-direction: column;
@@ -310,20 +310,20 @@
         let gameEnded = false;
         let isFirstRound = true;
 
-        // 注意：請確保以下音效檔案位於與 HTML 同目錄下
-        const startSound = new Audio('start.mp3');
-        const passSound = new Audio('pass.mp3');
-        const pairSound = new Audio('001.mp3'); // 一對
-        const straightSound = new Audio('002.mp3'); // 順子
-        const straightFlushSound = new Audio('003.mp3'); // 同花順
-        const fourOfAKindSound = new Audio('004.mp3'); // 鐵支
-        const fullHouseSound = new Audio('005.mp3'); // 葫蘆
-        const winSound = new Audio('win.mp3');
-        const lostSound = new Audio('lost.mp3');
+        // 禁用音效以避免檔案缺失錯誤
+        const startSound = { play: () => console.log('Sound: start.mp3') };
+        const passSound = { play: () => console.log('Sound: pass.mp3') };
+        const pairSound = { play: () => console.log('Sound: 001.mp3') };
+        const straightSound = { play: () => console.log('Sound: 002.mp3') };
+        const straightFlushSound = { play: () => console.log('Sound: 003.mp3') };
+        const fourOfAKindSound = { play: () => console.log('Sound: 004.mp3') };
+        const fullHouseSound = { play: () => console.log('Sound: 005.mp3') };
+        const winSound = { play: () => console.log('Sound: win.mp3') };
+        const lostSound = { play: () => console.log('Sound: lost.mp3') };
 
         function initGame() {
             console.log('初始化遊戲，模式:', isAutoPlay ? '自動' : '手動');
-            startSound.play().catch(e => console.log('Start sound error:', e));
+            startSound.play();
             deck = [];
             for (let suit of suits) {
                 for (let rank of ranks) {
@@ -336,10 +336,15 @@
             for (let i = 0; i < 52; i++) {
                 hands[i % 4].push(deck[i]);
             }
-            hands.forEach(hand => hand.sort(compareCards));
-            console.log('分配後手牌:', hands);
+            hands.forEach(hand => {
+                hand.sort(compareCards);
+                console.log(`手牌 ${hand.length} 張:`, hand);
+            });
             currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♣'));
-            if (currentPlayer === -1) currentPlayer = 0;
+            if (currentPlayer === -1) {
+                console.log('未找到♣3，隨機分配起始玩家');
+                currentPlayer = 0;
+            }
             tableCards = [];
             lastPlayed = null;
             selectedCards = [];
@@ -354,9 +359,9 @@
             updateHistory();
             startTimer();
             if (currentPlayer !== 0) {
-                setTimeout(aiPlay, 2000);
+                setTimeout(aiPlay, 2500); // AI 出牌間隔設為 2.5 秒
             } else if (isAutoPlay) {
-                setTimeout(autoPlay, 2000);
+                setTimeout(autoPlay, 2500);
             }
         }
 
@@ -385,8 +390,12 @@
                         playerHand.appendChild(cardDiv);
                     });
                 } else {
-                    console.error('玩家手牌為空或未初始化:', hands[0]);
-                    showNotification('手牌初始化失敗，請重試！', 'lose');
+                    console.warn('玩家手牌為空，顯示提示');
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.textContent = '無手牌';
+                    emptyDiv.style.fontSize = 'min(4vw, 20px)';
+                    emptyDiv.style.color = '#333';
+                    playerHand.appendChild(emptyDiv);
                 }
 
                 for (let i = 1; i <= 3; i++) {
@@ -401,7 +410,7 @@
                             cardDiv.classList.add('opponent-card');
                             const angle = (j - (cardCount - 1) / 2) * angleStep;
                             cardDiv.style.transform = `rotate(${angle}deg)`;
-                            cardDiv.style.left = `${j * min(2vw, 10px)}`;
+                            cardDiv.style.left = `${j * 10}px`;
                             aiHand.appendChild(cardDiv);
                         });
                     }
@@ -442,15 +451,15 @@
                     gameEnded = true;
                     const winner = hands.findIndex(hand => hand && hand.length === 0);
                     if (winner === 0) {
-                        winSound.play().catch(e => console.log('Win sound error:', e));
+                        winSound.play();
                         showNotification('您贏了！', 'win');
                     } else {
-                        lostSound.play().catch(e => console.log('Lost sound error:', e));
+                        lostSound.play();
                         showNotification('您輸了！', 'lose');
                     }
                     calculateScores();
                     clearInterval(timerInterval);
-                    setTimeout(resetGame, 1000);
+                    setTimeout(resetGame, 3000);
                 } else {
                     document.getElementById('status').textContent = `輪到 ${names[currentPlayer]}${isAutoPlay && currentPlayer === 0 ? ' (電腦代玩)' : ''}`;
                 }
@@ -535,8 +544,10 @@
                 moveHistory.push(`玩家出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 selectedCards.sort((a, b) => b - a);
                 for (let i of selectedCards) {
+                    console.log(`移除玩家手牌索引 ${i}:`, hands[0][i]);
                     hands[0].splice(i, 1);
                 }
+                console.log('出牌後玩家手牌:', hands[0]);
                 selectedCards = [];
                 passes = 0;
                 if (isFirstRound && cards.some(card => card.rank === '3' && card.suit === '♣')) {
@@ -556,7 +567,7 @@
                     showNotification('持有梅花三必須出牌！', 'lose');
                     return;
                 }
-                passSound.play().catch(e => console.log('Pass sound error:', e));
+                passSound.play();
                 moveHistory.push('玩家: 過牌');
                 passes++;
                 if (passes >= 3) {
@@ -620,7 +631,7 @@
                         showNotification('持有梅花三必須出牌！', 'lose');
                         return;
                     }
-                    passSound.play().catch(e => console.log('Pass sound error:', e));
+                    passSound.play();
                     moveHistory.push('玩家 (電腦代玩): 過牌');
                     passes++;
                     if (passes >= 3) {
@@ -640,9 +651,9 @@
             try {
                 isAutoPlay = !isAutoPlay;
                 console.log('切換模式，isAutoPlay:', isAutoPlay);
-                document.getElementById('status').textContent = isAutoPlay ? '輪到 玩家 (電腦代玩)' : '輪到 玩家 (玩家手動玩)';
+                document.getElementById('status').textContent = isAutoPlay ? '輪到 玩家 (電腦代玩)' : '輪到 玩家';
                 if (isAutoPlay && currentPlayer === 0) {
-                    setTimeout(autoPlay, 2000);
+                    setTimeout(autoPlay, 2500);
                 }
             } catch (e) {
                 console.error('切換自動模式錯誤:', e);
@@ -660,9 +671,9 @@
                 }
                 startTimer();
                 if (currentPlayer !== 0) {
-                    setTimeout(aiPlay, 2000);
+                    setTimeout(aiPlay, 2500);
                 } else if (isAutoPlay) {
-                    setTimeout(autoPlay, 2000);
+                    setTimeout(autoPlay, 2500);
                 }
             } catch (e) {
                 console.error('下一玩家錯誤:', e);
@@ -675,7 +686,7 @@
                 if (!hand) return;
                 const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
                 if (isFirstRound && !hand.some(card => card.rank === '3' && card.suit === '♣')) {
-                    passSound.play().catch(e => console.log('Pass sound error:', e));
+                    passSound.play();
                     moveHistory.push(`${names[currentPlayer]}: 過牌`);
                     passes++;
                     if (passes >= 3) {
@@ -726,7 +737,7 @@
                     hands[currentPlayer] = hand.filter(card => !validCombo.cards.includes(card));
                     passes = 0;
                 } else {
-                    passSound.play().catch(e => console.log('Pass sound error:', e));
+                    passSound.play();
                     moveHistory.push(`${names[currentPlayer]}: 過牌`);
                     passes++;
                     if (passes >= 3) {
@@ -752,7 +763,7 @@
                     'fullHouse': fullHouseSound
                 };
                 if (sounds[type]) {
-                    sounds[type].play().catch(e => console.log(`音效檔案 ${type}.mp3 載入失敗:`, e));
+                    sounds[type].play();
                 }
             } catch (e) {
                 console.error('播放音效錯誤:', e);
@@ -770,15 +781,15 @@
                     let startX = 0, startY = 0;
                     if (source === 'player') {
                         startX = 0;
-                        startY = min(30vw, 200px);
+                        startY = 200;
                     } else if (source === 'ai1') {
                         startX = 0;
-                        startY = -min(30vw, 200px);
+                        startY = -200;
                     } else if (source === 'ai2') {
-                        startX = -min(50vw, 300px);
+                        startX = -300;
                         startY = 0;
                     } else if (source === 'ai3') {
-                        startX = min(50vw, 300px);
+                        startX = 300;
                         startY = 0;
                     }
                     cardDiv.style.setProperty('--start-x', `${startX}px`);
@@ -793,9 +804,11 @@
                 setTimeout(() => {
                     tableCards = cards;
                     updateUI();
+                    console.log('動畫完成，更新桌面牌:', tableCards);
                 }, 500);
             } catch (e) {
                 console.error('卡牌動畫錯誤:', e);
+                updateUI();
             }
         }
 
@@ -941,7 +954,7 @@
                 return combos.sort((a, b) => {
                     const typeOrder = { 'straightFlush': 5, 'fourOfAKind': 4, 'fullHouse': 3, 'straight': 2, 'pair': 1, 'single': 0 };
                     if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[b.type] - typeOrder[a.type];
-                    if (a.value !== b.value) return b.value - b.value;
+                    if (a.value !== b.value) return b.value - a.value;
                     if (a.suit && b.suit) return b.suit - a.suit;
                     return 0;
                 });
@@ -1098,9 +1111,12 @@
         function resetGame() {
             try {
                 console.log('重置遊戲，模式:', isAutoPlay ? '自動' : '手動');
+                hands = [[], [], [], []];
                 initGame();
+                updateUI();
             } catch (e) {
                 console.error('重置遊戲錯誤:', e);
+                showNotification('重置失敗，請重新整理頁面！', 'lose');
             }
         }
 
