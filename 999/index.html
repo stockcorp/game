@@ -310,14 +310,14 @@
         let gameEnded = false;
         let isFirstRound = true;
 
-        // 恢復音效載入，假設檔案位於同目錄
+        // 音效載入
         const startSound = new Audio('start.mp3');
         const passSound = new Audio('pass.mp3');
-        const pairSound = new Audio('001.mp3'); // 一對
-        const straightSound = new Audio('002.mp3'); // 順子
-        const straightFlushSound = new Audio('003.mp3'); // 同花順
-        const fourOfAKindSound = new Audio('004.mp3'); // 鐵支
-        const fullHouseSound = new Audio('005.mp3'); // 葫蘆
+        const pairSound = new Audio('001.mp3');
+        const straightSound = new Audio('002.mp3');
+        const straightFlushSound = new Audio('003.mp3');
+        const fourOfAKindSound = new Audio('004.mp3');
+        const fullHouseSound = new Audio('005.mp3');
         const winSound = new Audio('win.mp3');
         const lostSound = new Audio('lost.mp3');
 
@@ -482,18 +482,23 @@
 
         function startTimer() {
             try {
-                if (timerInterval) clearInterval(timerInterval);
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                }
                 timer = 30;
                 document.getElementById('timer').textContent = `計時器: ${timer}秒`;
                 timerInterval = setInterval(() => {
                     timer--;
                     document.getElementById('timer').textContent = `計時器: ${timer}秒`;
                     if (timer <= 0) {
+                        console.log('計時器到達 0，自動過牌');
                         pass();
                     }
                 }, 1000);
+                console.log('計時器啟動，初始值:', timer);
             } catch (e) {
                 console.error('計時器錯誤:', e);
+                showNotification('計時器初始化失敗！', 'lose');
             }
         }
 
@@ -509,13 +514,17 @@
 
         function toggleCardSelection(index) {
             try {
-                if (currentPlayer !== 0 || isAutoPlay) return;
+                if (currentPlayer !== 0 || isAutoPlay) {
+                    console.log('非玩家回合或自動模式，無法選牌');
+                    return;
+                }
                 const idx = selectedCards.indexOf(index);
                 if (idx === -1) {
                     selectedCards.push(index);
                 } else {
                     selectedCards.splice(idx, 1);
                 }
+                console.log('選牌更新:', selectedCards);
                 updateUI();
             } catch (e) {
                 console.error('選牌錯誤:', e);
@@ -524,12 +533,17 @@
 
         function playCards() {
             try {
-                if (currentPlayer !== 0 || isAutoPlay) return;
-                const cards = selectedCards.map(i => hands[0][i]);
-                if (cards.length === 0) {
+                if (currentPlayer !== 0 || isAutoPlay) {
+                    console.log('非玩家回合或自動模式，無法出牌');
+                    showNotification('現在不是您的回合！', 'lose');
+                    return;
+                }
+                if (selectedCards.length === 0) {
                     showNotification('請選擇卡牌！', 'lose');
                     return;
                 }
+                const cards = selectedCards.map(i => hands[0][i]);
+                console.log('玩家嘗試出牌:', cards);
                 const combo = getCombination(cards);
                 if (!combo) {
                     showNotification('無效組合！', 'lose');
@@ -574,7 +588,10 @@
 
         function pass() {
             try {
-                if (currentPlayer !== 0 || isAutoPlay) return;
+                if (currentPlayer !== 0 || isAutoPlay) {
+                    console.log('非玩家回合或自動模式，無法過牌');
+                    return;
+                }
                 if (isFirstRound && hands[0].some(card => card.rank === '3' && card.suit === '♣')) {
                     showNotification('持有梅花三必須出牌！', 'lose');
                     return;
@@ -674,6 +691,8 @@
                 document.getElementById('status').textContent = isAutoPlay ? '輪到 玩家 (電腦代玩)' : '輪到 玩家';
                 if (isAutoPlay && currentPlayer === 0) {
                     setTimeout(autoPlay, 2500);
+                } else {
+                    startTimer(); // 切回手動模式時重啟計時器
                 }
             } catch (e) {
                 console.error('切換自動模式錯誤:', e);
@@ -683,6 +702,7 @@
         function nextPlayer() {
             try {
                 currentPlayer = (currentPlayer + 1) % 4;
+                console.log('切換到玩家:', currentPlayer);
                 updateUI();
                 updateStatus();
                 if (hands[currentPlayer] && hands[currentPlayer].length === 0) {
@@ -754,7 +774,7 @@
                     if (validCombo.type !== 'single') {
                         playComboSound(validCombo.type);
                     }
-                    animateCards(validCombo.cards, `ai${currentPlayer}`, combo.type);
+                    animateCards(validCombo.cards, `ai${currentPlayer}`, validCombo.type);
                     moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                     tableCards = validCombo.cards;
                     lastPlayed = validCombo;
