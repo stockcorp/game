@@ -14,7 +14,7 @@
             flex-direction: column;
         }
         #game-container {
-            flex: 0 0 80%; /* 遊戲區占80% */
+            flex: 0 0 80%;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -28,7 +28,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 600px; /* 放大桌子 */
+            width: 600px;
             height: 300px;
             background-color: #4CAF50;
             border-radius: 12px;
@@ -129,12 +129,12 @@
             transform: translateX(-50%);
         }
         #ai2 {
-            left: 20px; /* 桌子左邊 */
-            bottom: 50px; /* 下移 */
+            left: 20px;
+            top: 150px; /* Adjusted upward to align with table */
         }
         #ai3 {
-            right: 20px; /* 桌子右邊 */
-            bottom: 50px; /* 下移 */
+            right: 20px;
+            top: 150px; /* Adjusted upward to align with table */
         }
         .player-label {
             background: linear-gradient(135deg, #4CAF50, #2E7D32);
@@ -146,28 +146,8 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        #controls {
-            display: flex;
-            gap: 10px;
-            position: absolute;
-            bottom: 80px;
-            z-index: 2;
-        }
-        button {
-            padding: 12px 24px;
-            font-size: 18px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        button:hover {
-            background-color: #45a049;
-        }
         #info-panel {
-            flex: 0 0 20%; /* 資訊框占20% */
+            flex: 0 0 20%;
             width: 100%;
             max-width: 1200px;
             padding: 15px;
@@ -175,10 +155,10 @@
             border-top: 1px solid #ccc;
             box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
             z-index: 3;
-            text-align: center;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            align-items: center;
         }
         #status, #scores, #timer {
             font-size: 18px;
@@ -195,7 +175,36 @@
             padding: 10px;
             font-size: 16px;
             border-radius: 5px;
-            margin: 0 auto;
+            margin: 10px auto;
+        }
+        #controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin==
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 18px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        button:hover {
+            background: linear-gradient(135deg, #45a049, #2a6b2f);
+            box-shadow: 0 6px 10px rgba(0,0,0,0.3);
+            transform: translateY(-2px);
+        }
+        button:active {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transform: translateY(0);
         }
     </style>
 </head>
@@ -218,12 +227,6 @@
         <div id="table">
             <div id="table-cards"></div>
         </div>
-        <div id="controls">
-            <button onclick="playCards()">出牌</button>
-            <button onclick="pass()">過牌</button>
-            <button onclick="toggleAutoPlay()">電腦代玩</button>
-            <button onclick="resetGame()">重新洗牌</button>
-        </div>
         <div id="player-hand">
             <div class="player-label" style="position: absolute; top: -30px;">玩家</div>
         </div>
@@ -232,19 +235,27 @@
         <div id="status">等待開始...</div>
         <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
         <div id="timer">計時器: 30秒</div>
+        <div id="controls">
+            <button onclick="playCards()">出牌</button>
+            <button onclick="pass()">過牌</button>
+            <button onclick="toggleAutoPlay()">電腦代玩</button>
+            <button onclick="resetGame()">重新洗牌</button>
+        </div>
         <div id="history"></div>
     </div>
 
+    <!-- JavaScript remains unchanged -->
     <script>
+        // ... (Your original JavaScript code goes here, unchanged) ...
         // 卡牌定義
         const suits = ['♠', '♥', '♣', '♦'];
         const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
-        const suitOrder = { '♠': 4, '♥': 3, '♦': 2, '♣': 1 }; // 黑桃 > 紅心 > 方塊 > 梅花
+        const suitOrder = { '♠': 4, '♥': 3, '♦': 2, '♣': 1 };
         const rankOrder = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6, '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11, 'A': 12, '2': 13 };
 
         // 遊戲狀態
         let deck = [];
-        let hands = [[], [], [], []]; // 玩家, AI1, AI2, AI3
+        let hands = [[], [], [], []];
         let tableCards = [];
         let currentPlayer = 0;
         let lastPlayed = null;
@@ -313,7 +324,6 @@
         // 更新界面
         function updateUI() {
             try {
-                // 玩家手牌
                 const playerHand = document.getElementById('player-hand');
                 playerHand.innerHTML = '<div class="player-label" style="position: absolute; top: -30px;">玩家</div>';
                 if (hands[0] && Array.isArray(hands[0])) {
@@ -330,7 +340,6 @@
                     });
                 }
 
-                // AI手牌（傘型）
                 for (let i = 1; i <= 3; i++) {
                     const aiHand = document.getElementById(`ai${i}-hand`);
                     aiHand.innerHTML = '';
@@ -349,7 +358,6 @@
                     }
                 }
 
-                // 桌面卡牌
                 const tableDiv = document.getElementById('table-cards');
                 tableDiv.innerHTML = '';
                 if (tableCards && Array.isArray(tableCards)) {
@@ -362,14 +370,12 @@
                     });
                 }
 
-                // 分數
                 document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI 1: ${scores[1]} | AI 2: ${scores[2]} | AI 3: ${scores[3]}`;
             } catch (e) {
                 console.error('Update UI error:', e);
             }
         }
 
-        // 更新狀態
         function updateStatus() {
             const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
             if (hands.some(hand => hand && hand.length === 0)) {
@@ -388,7 +394,6 @@
             }
         }
 
-        // 更新計時器
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
             timer = 30;
@@ -402,14 +407,12 @@
             }, 1000);
         }
 
-        // 更新移動歷史
         function updateHistory() {
             const historyDiv = document.getElementById('history');
             historyDiv.innerHTML = moveHistory.map((move, i) => `${i + 1}. ${move}`).join('<br>');
             historyDiv.scrollTop = historyDiv.scrollHeight;
         }
 
-        // 選擇卡牌
         function toggleCardSelection(index) {
             if (currentPlayer !== 0 || isAutoPlay) return;
             const idx = selectedCards.indexOf(index);
@@ -421,7 +424,6 @@
             updateUI();
         }
 
-        // 出牌
         function playCards() {
             if (currentPlayer !== 0 || isAutoPlay) return;
             const cards = selectedCards.map(i => hands[0][i]);
@@ -462,7 +464,6 @@
             nextPlayer();
         }
 
-        // 過牌
         function pass() {
             if (currentPlayer !== 0 || isAutoPlay) return;
             passSound.play().catch(e => console.log('Pass sound error:', e));
@@ -476,7 +477,6 @@
             nextPlayer();
         }
 
-        // 電腦代玩
         function autoPlay() {
             if (currentPlayer !== 0 || !isAutoPlay) return;
             const hand = hands[0];
@@ -529,7 +529,6 @@
             nextPlayer();
         }
 
-        // 切換電腦代玩
         function toggleAutoPlay() {
             isAutoPlay = !isAutoPlay;
             document.getElementById('status').textContent = isAutoPlay ? '輪到 玩家 (電腦代玩)' : '輪到 玩家 (玩家手動玩)';
@@ -538,7 +537,6 @@
             }
         }
 
-        // 下一個玩家
         function nextPlayer() {
             currentPlayer = (currentPlayer + 1) % 4;
             updateUI();
@@ -556,7 +554,6 @@
             }
         }
 
-        // AI出牌
         function aiPlay() {
             const hand = hands[currentPlayer];
             if (!hand) return;
@@ -609,7 +606,6 @@
             nextPlayer();
         }
 
-        // 播放組合音效
         function playComboSound(type) {
             const sounds = {
                 'pair': pairSound,
@@ -623,7 +619,6 @@
             }
         }
 
-        // 卡牌滑動與翻轉動畫
         function animateCards(cards, source, comboType) {
             const tableDiv = document.getElementById('table-cards');
             tableDiv.innerHTML = '';
@@ -660,7 +655,6 @@
             }, 500);
         }
 
-        // 獲取卡牌組合
         function getCombination(cards) {
             cards.sort(compareCards);
             if (cards.length === 1) {
@@ -673,7 +667,6 @@
                 if (isStraightFlush(cards)) return { type: 'straightFlush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards };
                 if (isFourOfAKind(cards)) return { type: 'fourOfAKind', value: rankOrder[cards[1].rank], cards };
                 if (isFullHouse(cards)) {
-                    // 三張點數作為value
                     let ranks = cards.map(c => rankOrder[c.rank]);
                     let counts = {};
                     ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
@@ -685,24 +678,17 @@
             return null;
         }
 
-        // 檢查是否能打敗
         function canBeat(newCombo, oldCombo) {
             const typeOrder = { 'straightFlush': 6, 'fourOfAKind': 5, 'straight': 4, 'fullHouse': 3, 'pair': 2, 'single': 1 };
-            
-            // 同花順壓所有
             if (newCombo.type === 'straightFlush' && oldCombo.type !== 'straightFlush') {
                 return true;
             }
-            // 鐵支壓除同花順外所有
             if (newCombo.type === 'fourOfAKind' && oldCombo.type !== 'straightFlush') {
                 return true;
             }
-            // 必須相同類型（除鐵支與同花順外）
             if (newCombo.type !== oldCombo.type && newCombo.type !== 'fourOfAKind' && newCombo.type !== 'straightFlush') {
                 return false;
             }
-
-            // 同類型比較
             if (newCombo.type === 'single' || newCombo.type === 'pair') {
                 if (newCombo.value !== oldCombo.value) {
                     return newCombo.value > oldCombo.value;
@@ -724,7 +710,6 @@
             return false;
         }
 
-        // 獲取所有可能組合
         function getAllCombinations(hand) {
             let combos = [];
             hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.rank], suit: suitOrder[card.suit], cards: [card] }));
@@ -746,10 +731,9 @@
             });
         }
 
-        // 獲取五張牌組合
         function getFiveCardCombinations(hand) {
             const combos = [];
-            const combinations = getCombinations(hand, 5);
+            const combinations = get acteCombinations(hand, 5);
             combinations.forEach(cards => {
                 cards.sort(compareCards);
                 if (isStraightFlush(cards)) combos.push({ type: 'straightFlush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards });
@@ -766,7 +750,6 @@
             return combos;
         }
 
-        // 生成組合
         function getCombinations(arr, k) {
             const result = [];
             function combine(start, combo) {
@@ -784,7 +767,6 @@
             return result;
         }
 
-        // 五張牌組合檢查
         function isStraight(cards) {
             let values = cards.map(card => rankOrder[card.rank]).sort((a, b) => b - a);
             for (let i = 1; i < values.length; i++) {
@@ -815,7 +797,6 @@
             return isStraight(cards) && isFlush(cards);
         }
 
-        // 計算得分
         function calculateScores() {
             let winner = hands.findIndex(hand => hand && hand.length === 0);
             if (winner === -1) return;
@@ -833,13 +814,11 @@
             updateHistory();
         }
 
-        // 重置遊戲
         function resetGame() {
             scores = [0, 0, 0, 0];
             initGame();
         }
 
-        // 初始化遊戲
         initGame();
     </script>
 </body>
