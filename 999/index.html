@@ -6,35 +6,38 @@
     <title>大老二 - 玩家 vs 3 AI</title>
     <style>
         body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
             margin: 0;
             background-color: #f0f0f0;
             font-family: Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         #game-container {
+            flex: 0 0 80%; /* 遊戲區占80% */
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 20px;
             position: relative;
-            width: 900px;
-            min-height: 800px; /* 增加高度確保空間 */
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            overflow: hidden;
         }
         #table {
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 450px;
-            height: 225px;
+            width: 600px; /* 放大桌子 */
+            height: 300px;
             background-color: #4CAF50;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            position: relative;
+            border-radius: 12px;
+            box-shadow: 0 0 12px rgba(0,0,0,0.5);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             z-index: 1;
-            top: 100px; /* 下移桌面避免與AI1重疊 */
         }
         #table-cards {
             display: flex;
@@ -89,11 +92,11 @@
             justify-content: center;
             max-width: 720px;
             position: absolute;
-            bottom: 150px;
+            bottom: 20px;
             z-index: 2;
         }
         #opponents {
-            position: relative;
+            position: absolute;
             width: 100%;
             height: 100%;
         }
@@ -121,19 +124,17 @@
             transform-origin: bottom center;
         }
         #ai1 {
-            top: 20px; /* 上移至畫面內 */
+            top: 20px;
             left: 50%;
             transform: translateX(-50%);
         }
         #ai2 {
-            left: -150px;
-            top: 50%;
-            transform: translateY(-50%);
+            left: 20px; /* 桌子左邊 */
+            bottom: 50px; /* 下移 */
         }
         #ai3 {
-            right: -150px;
-            top: 50%;
-            transform: translateY(-50%);
+            right: 20px; /* 桌子右邊 */
+            bottom: 50px; /* 下移 */
         }
         .player-label {
             background: linear-gradient(135deg, #4CAF50, #2E7D32);
@@ -166,17 +167,18 @@
             background-color: #45a049;
         }
         #info-panel {
-            position: absolute;
-            top: 10px; /* 移至畫面頂部 */
-            right: 10px; /* 靠右放置 */
-            width: 300px;
+            flex: 0 0 20%; /* 資訊框占20% */
+            width: 100%;
+            max-width: 1200px;
             padding: 15px;
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(220, 220, 220, 0.95));
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            border: 1px solid #ccc;
+            border-top: 1px solid #ccc;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
             z-index: 3;
-            text-align: left;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         #status, #scores, #timer {
             font-size: 18px;
@@ -185,13 +187,15 @@
         }
         #history {
             width: 100%;
-            height: 100px;
+            max-width: 600px;
+            height: 80px;
             overflow-y: auto;
             background-color: #fff;
             border: 1px solid #ccc;
             padding: 10px;
             font-size: 16px;
             border-radius: 5px;
+            margin: 0 auto;
         }
     </style>
 </head>
@@ -214,12 +218,6 @@
         <div id="table">
             <div id="table-cards"></div>
         </div>
-        <div id="info-panel">
-            <div id="status">等待開始...</div>
-            <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
-            <div id="timer">計時器: 30秒</div>
-            <div id="history"></div>
-        </div>
         <div id="controls">
             <button onclick="playCards()">出牌</button>
             <button onclick="pass()">過牌</button>
@@ -229,6 +227,12 @@
         <div id="player-hand">
             <div class="player-label" style="position: absolute; top: -30px;">玩家</div>
         </div>
+    </div>
+    <div id="info-panel">
+        <div id="status">等待開始...</div>
+        <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
+        <div id="timer">計時器: 30秒</div>
+        <div id="history"></div>
     </div>
 
     <script>
@@ -255,7 +259,6 @@
         // 音效
         const startSound = new Audio('start.mp3');
         const passSound = new Audio('pass.mp3');
-        const singleSound = new Audio('po.mp3');
         const pairSound = new Audio('001.mp3');
         const straightSound = new Audio('002.mp3');
         const straightFlushSound = new Audio('003.mp3');
@@ -373,10 +376,10 @@
                 const winner = hands.findIndex(hand => hand && hand.length === 0);
                 if (winner === 0) {
                     winSound.play().catch(e => console.log('Win sound error:', e));
-                    document.getElementById('status').textContent = '你贏了！';
+                    alert('您贏了！');
                 } else {
                     lostSound.play().catch(e => console.log('Lost sound error:', e));
-                    document.getElementById('status').textContent = '你輸了！';
+                    alert('您輸了！');
                 }
                 calculateScores();
                 clearInterval(timerInterval);
@@ -445,7 +448,9 @@
                 updateUI();
                 return;
             }
-            playComboSound(combo.type);
+            if (combo.type !== 'single') {
+                playComboSound(combo.type);
+            }
             animateCards(cards, 'player', combo.type);
             moveHistory.push(`玩家出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
             selectedCards.sort((a, b) => b - a);
@@ -480,7 +485,9 @@
                 let cards = hand.filter(card => card.rank === '3' && card.suit === '♣');
                 if (cards.length > 0) {
                     const combo = getCombination(cards);
-                    playComboSound(combo.type);
+                    if (combo.type !== 'single') {
+                        playComboSound(combo.type);
+                    }
                     animateCards(cards, 'player', combo.type);
                     moveHistory.push(`玩家 (電腦代玩) 出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                     tableCards = cards;
@@ -500,7 +507,9 @@
                 }
             }
             if (validCombo) {
-                playComboSound(validCombo.type);
+                if (validCombo.type !== 'single') {
+                    playComboSound(validCombo.type);
+                }
                 animateCards(validCombo.cards, 'player', validCombo.type);
                 moveHistory.push(`玩家 (電腦代玩) 出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 tableCards = validCombo.cards;
@@ -556,7 +565,9 @@
                 let cards = hand.filter(card => card.rank === '3' && card.suit === '♣');
                 if (cards.length > 0) {
                     const combo = getCombination(cards);
-                    playComboSound(combo.type);
+                    if (combo.type !== 'single') {
+                        playComboSound(combo.type);
+                    }
                     animateCards(cards, `ai${currentPlayer}`, combo.type);
                     moveHistory.push(`${names[currentPlayer]}出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                     tableCards = cards;
@@ -576,7 +587,9 @@
                 }
             }
             if (validCombo) {
-                playComboSound(validCombo.type);
+                if (validCombo.type !== 'single') {
+                    playComboSound(validCombo.type);
+                }
                 animateCards(validCombo.cards, `ai${currentPlayer}`, validCombo.type);
                 moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 tableCards = validCombo.cards;
@@ -599,14 +612,15 @@
         // 播放組合音效
         function playComboSound(type) {
             const sounds = {
-                'single': singleSound,
                 'pair': pairSound,
                 'straight': straightSound,
                 'straightFlush': straightFlushSound,
                 'fourOfAKind': fourOfAKindSound,
                 'fullHouse': fullHouseSound
             };
-            sounds[type].play().catch(e => console.log(`Sound error (${type}):`, e));
+            if (sounds[type]) {
+                sounds[type].play().catch(e => console.log(`Sound error (${type}):`, e));
+            }
         }
 
         // 卡牌滑動與翻轉動畫
@@ -658,7 +672,14 @@
             if (cards.length === 5) {
                 if (isStraightFlush(cards)) return { type: 'straightFlush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards };
                 if (isFourOfAKind(cards)) return { type: 'fourOfAKind', value: rankOrder[cards[1].rank], cards };
-                if (isFullHouse(cards)) return { type: 'fullHouse', value: rankOrder[cards[2].rank], cards };
+                if (isFullHouse(cards)) {
+                    // 三張點數作為value
+                    let ranks = cards.map(c => rankOrder[c.rank]);
+                    let counts = {};
+                    ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+                    let tripleValue = parseInt(Object.keys(counts).find(k => counts[k] === 3));
+                    return { type: 'fullHouse', value: tripleValue, cards };
+                }
                 if (isStraight(cards)) return { type: 'straight', value: rankOrder[cards[0].rank], cards };
             }
             return null;
@@ -666,13 +687,22 @@
 
         // 檢查是否能打敗
         function canBeat(newCombo, oldCombo) {
-            const typeOrder = { 'straightFlush': 6, 'fourOfAKind': 5, 'straight': 4, 'fullHouse': 4, 'pair': 2, 'single': 1 };
-            if (typeOrder[newCombo.type] > typeOrder[oldCombo.type]) {
+            const typeOrder = { 'straightFlush': 6, 'fourOfAKind': 5, 'straight': 4, 'fullHouse': 3, 'pair': 2, 'single': 1 };
+            
+            // 同花順壓所有
+            if (newCombo.type === 'straightFlush' && oldCombo.type !== 'straightFlush') {
                 return true;
             }
-            if (typeOrder[newCombo.type] < typeOrder[oldCombo.type]) {
+            // 鐵支壓除同花順外所有
+            if (newCombo.type === 'fourOfAKind' && oldCombo.type !== 'straightFlush') {
+                return true;
+            }
+            // 必須相同類型（除鐵支與同花順外）
+            if (newCombo.type !== oldCombo.type && newCombo.type !== 'fourOfAKind' && newCombo.type !== 'straightFlush') {
                 return false;
             }
+
+            // 同類型比較
             if (newCombo.type === 'single' || newCombo.type === 'pair') {
                 if (newCombo.value !== oldCombo.value) {
                     return newCombo.value > oldCombo.value;
@@ -685,7 +715,13 @@
                 }
                 return newCombo.suit > oldCombo.suit;
             }
-            return newCombo.value > oldCombo.value;
+            if (newCombo.type === 'straight' || newCombo.type === 'fullHouse') {
+                return newCombo.value > oldCombo.value;
+            }
+            if (newCombo.type === 'fourOfAKind') {
+                return newCombo.value > oldCombo.value;
+            }
+            return false;
         }
 
         // 獲取所有可能組合
@@ -718,7 +754,13 @@
                 cards.sort(compareCards);
                 if (isStraightFlush(cards)) combos.push({ type: 'straightFlush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards });
                 else if (isFourOfAKind(cards)) combos.push({ type: 'fourOfAKind', value: rankOrder[cards[1].rank], cards });
-                else if (isFullHouse(cards)) combos.push({ type: 'fullHouse', value: rankOrder[cards[2].rank], cards });
+                else if (isFullHouse(cards)) {
+                    let ranks = cards.map(c => rankOrder[c.rank]);
+                    let counts = {};
+                    ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+                    let tripleValue = parseInt(Object.keys(counts).find(k => counts[k] === 3));
+                    combos.push({ type: 'fullHouse', value: tripleValue, cards });
+                }
                 else if (isStraight(cards)) combos.push({ type: 'straight', value: rankOrder[cards[0].rank], cards });
             });
             return combos;
