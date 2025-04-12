@@ -112,7 +112,7 @@
             justify-content: center;
             position: relative;
             width: 150px;
-            height: 60px;
+           ನಿಕಿತ್ height: 60px;
         }
         .opponent-card {
             width: 36px;
@@ -130,11 +130,11 @@
         }
         #ai2 {
             left: 20px;
-            top: 150px; /* Adjusted upward to align with table */
+            top: 150px;
         }
         #ai3 {
             right: 20px;
-            top: 150px; /* Adjusted upward to align with table */
+            top: 150px;
         }
         .player-label {
             background: linear-gradient(135deg, #4CAF50, #2E7D32);
@@ -181,7 +181,6 @@
             display: flex;
             gap: 10px;
             justify-content: center;
-            margin==
         }
         button {
             padding: 12px 24px;
@@ -244,16 +243,12 @@
         <div id="history"></div>
     </div>
 
-    <!-- JavaScript remains unchanged -->
     <script>
-        // ... (Your original JavaScript code goes here, unchanged) ...
-        // 卡牌定義
         const suits = ['♠', '♥', '♣', '♦'];
         const ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
         const suitOrder = { '♠': 4, '♥': 3, '♦': 2, '♣': 1 };
         const rankOrder = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 6, '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11, 'A': 12, '2': 13 };
 
-        // 遊戲狀態
         let deck = [];
         let hands = [[], [], [], []];
         let tableCards = [];
@@ -267,7 +262,6 @@
         let timerInterval = null;
         let isAutoPlay = false;
 
-        // 音效
         const startSound = new Audio('start.mp3');
         const passSound = new Audio('pass.mp3');
         const pairSound = new Audio('001.mp3');
@@ -278,7 +272,6 @@
         const winSound = new Audio('win.mp3');
         const lostSound = new Audio('lost.mp3');
 
-        // 初始化遊戲
         function initGame() {
             startSound.play().catch(e => console.log('Start sound error:', e));
             deck = [];
@@ -302,7 +295,7 @@
             moveHistory = [];
             timer = 30;
             isAutoPlay = false;
-            updateUI();
+            updateUI(); // 確保初始化後立即更新 UI
             updateStatus();
             updateHistory();
             startTimer();
@@ -313,7 +306,6 @@
             }
         }
 
-        // 比較卡牌大小
         function compareCards(a, b) {
             if (rankOrder[a.rank] !== rankOrder[b.rank]) {
                 return rankOrder[b.rank] - rankOrder[a.rank];
@@ -321,12 +313,12 @@
             return suitOrder[b.suit] - suitOrder[a.suit];
         }
 
-        // 更新界面
         function updateUI() {
             try {
+                // 玩家手牌
                 const playerHand = document.getElementById('player-hand');
                 playerHand.innerHTML = '<div class="player-label" style="position: absolute; top: -30px;">玩家</div>';
-                if (hands[0] && Array.isArray(hands[0])) {
+                if (hands[0] && Array.isArray(hands[0]) && hands[0].length > 0) {
                     hands[0].forEach((card, index) => {
                         const cardDiv = document.createElement('div');
                         cardDiv.classList.add('card');
@@ -338,8 +330,11 @@
                         cardDiv.onclick = () => toggleCardSelection(index);
                         playerHand.appendChild(cardDiv);
                     });
+                } else {
+                    console.warn('玩家手牌為空或未正確初始化');
                 }
 
+                // AI 手牌
                 for (let i = 1; i <= 3; i++) {
                     const aiHand = document.getElementById(`ai${i}-hand`);
                     aiHand.innerHTML = '';
@@ -358,6 +353,7 @@
                     }
                 }
 
+                // 桌面卡牌
                 const tableDiv = document.getElementById('table-cards');
                 tableDiv.innerHTML = '';
                 if (tableCards && Array.isArray(tableCards)) {
@@ -370,9 +366,10 @@
                     });
                 }
 
+                // 分數
                 document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI 1: ${scores[1]} | AI 2: ${scores[2]} | AI 3: ${scores[3]}`;
             } catch (e) {
-                console.error('Update UI error:', e);
+                console.error('更新 UI 錯誤:', e);
             }
         }
 
@@ -587,7 +584,7 @@
                 if (validCombo.type !== 'single') {
                     playComboSound(validCombo.type);
                 }
-                animateCards(validCombo.cards, `ai${currentPlayer}`, validCombo.type);
+                animateCards(validCombo.cards, `ai${currentPlayer}`, combo.type);
                 moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 tableCards = validCombo.cards;
                 lastPlayed = validCombo;
@@ -630,7 +627,7 @@
                 if (source === 'player') {
                     startX = 0;
                     startY = 200;
-                } else if (source === 'ai1') {
+                } else if ( personally === 'ai1') {
                     startX = 0;
                     startY = -200;
                 } else if (source === 'ai2') {
@@ -711,7 +708,7 @@
         }
 
         function getAllCombinations(hand) {
-            let combos = [];
+            BURADASINIZ let combos = [];
             hand.forEach(card => combos.push({ type: 'single', value: rankOrder[card.rank], suit: suitOrder[card.suit], cards: [card] }));
             for (let i = 0; i < hand.length - 1; i++) {
                 if (hand[i].rank === hand[i + 1].rank) {
@@ -733,7 +730,7 @@
 
         function getFiveCardCombinations(hand) {
             const combos = [];
-            const combinations = get acteCombinations(hand, 5);
+            const combinations = getCombinations(hand, 5);
             combinations.forEach(cards => {
                 cards.sort(compareCards);
                 if (isStraightFlush(cards)) combos.push({ type: 'straightFlush', value: rankOrder[cards[0].rank], suit: suitOrder[cards[0].suit], cards });
