@@ -126,16 +126,16 @@
             position: absolute;
             transform-origin: bottom center;
         }
-        #ai1 {
+        #aiGrok {
             top: min(5vw, 20px);
             left: 50%;
             transform: translateX(-50%);
         }
-        #ai2 {
+        #aiGhatGPT {
             left: min(5vw, 20px);
             top: min(25vw, 150px);
         }
-        #ai3 {
+        #aiDeepSeek {
             right: min(5vw, 20px);
             top: min(25vw, 150px);
         }
@@ -234,18 +234,18 @@
             background: linear-gradient(135deg, #f44336, #d32f2f);
         }
         @media (max-width: 768px) {
-            #ai1 { top: 5vh; }
-            #ai2 { left: 5vw; top: min(20vh, 120px); }
-            #ai3 { right: 5vw; top: min(20vh, 120px); }
+            #aiGrok { top: 5vh; }
+            #aiGhatGPT { left: 5vw; top: min(20vh, 120px); }
+            #aiDeepSeek { right: 5vw; top: min(20vh, 120px); }
             .player-label { font-size: min(3vw, 16px); padding: 0.5rem 1rem; }
             #info-panel { padding: min(2vw, 10px); }
             #status, #scores, #timer { font-size: min(4vw, 16px); }
             #history { font-size: min(3.5vw, 14px); }
         }
         @media (max-width: 480px) {
-            #ai1 { top: 2vh; }
-            #ai2 { left: 2vw; top: min(15vh, 100px); }
-            #ai3 { right: 2vw; top: min(15vh, 100px); }
+            #aiGrok { top: 2vh; }
+            #aiGhatGPT { left: 2vw; top: min(15vh, 100px); }
+            #aiDeepSeek { right: 2vw; top: min(15vh, 100px); }
             .card { font-size: min(4vw, 16px); }
             button { padding: 0.8rem 1.5rem; font-size: min(4vw, 16px); }
             #controls { gap: 0.5rem; }
@@ -430,17 +430,17 @@
                 <!-- 原始遊戲區域 -->
                 <div id="game-container">
                     <div id="opponents">
-                        <div class="opponent" id="ai1">
-                            <div class="player-label">AI 1</div>
-                            <div class="opponent-hand" id="ai1-hand"></div>
+                        <div class="opponent" id="aiGrok">
+                            <div class="player-label">AI Grok</div>
+                            <div class="opponent-hand" id="aiGrok-hand"></div>
                         </div>
-                        <div class="opponent" id="ai2">
-                            <div class="player-label">AI 2</div>
-                            <div class="opponent-hand" id="ai2-hand"></div>
+                        <div class="opponent" id="aiGhatGPT">
+                            <div class="player-label">AI GhatGPT</div>
+                            <div class="opponent-hand" id="aiGhatGPT-hand"></div>
                         </div>
-                        <div class="opponent" id="ai3">
-                            <div class="player-label">AI 3</div>
-                            <div class="opponent-hand" id="ai3-hand"></div>
+                        <div class="opponent" id="aiDeepSeek">
+                            <div class="player-label">AI DeepSeek</div>
+                            <div class="opponent-hand" id="aiDeepSeek-hand"></div>
                         </div>
                     </div>
                     <div id="table">
@@ -452,7 +452,7 @@
                 </div>
                 <div id="info-panel">
                     <div id="status">等待開始...</div>
-                    <div id="scores">得分: 玩家: 0 | AI 1: 0 | AI 2: 0 | AI 3: 0</div>
+                    <div id="scores">得分: 玩家: 0 | AI Grok: 0 | AI GhatGPT: 0 | AI DeepSeek: 0</div>
                     <div id="timer">計時器: 30秒</div>
                     <div id="controls">
                         <button onclick="playCards()">出牌</button>
@@ -612,14 +612,15 @@
                     playerHand.appendChild(emptyDiv);
                 }
 
-                for (let i = 1; i <= 3; i++) {
-                    const aiHand = document.getElementById(`ai${i}-hand`);
+                const aiNames = ['aiGrok', 'aiGhatGPT', 'aiDeepSeek'];
+                for (let i = 0; i < 3; i++) {
+                    const aiHand = document.getElementById(`${aiNames[i]}-hand`);
                     aiHand.innerHTML = '';
-                    if (hands[i] && hands[i].length > 0) {
-                        const cardCount = hands[i].length;
+                    if (hands[i + 1] && hands[i + 1].length > 0) {
+                        const cardCount = hands[i + 1].length;
                         const maxAngle = 60;
                         const angleStep = cardCount > 1 ? Math.min(maxAngle / (cardCount - 1), 10) : 0;
-                        hands[i].forEach((card, j) => {
+                        hands[i + 1].forEach((card, j) => {
                             const cardDiv = document.createElement('div');
                             cardDiv.classList.add('opponent-card');
                             const angle = (j - (cardCount - 1) / 2) * angleStep;
@@ -642,7 +643,7 @@
                     });
                 }
 
-                document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI 1: ${scores[1]} | AI 2: ${scores[2]} | AI 3: ${scores[3]}`;
+                document.getElementById('scores').textContent = `得分: 玩家: ${scores[0]} | AI Grok: ${scores[1]} | AI GhatGPT: ${scores[2]} | AI DeepSeek: ${scores[3]}`;
             } catch (e) {
                 console.error('更新 UI 錯誤:', e);
                 showNotification('UI 渲染失敗，請重試！', 'lose');
@@ -660,7 +661,7 @@
 
         function updateStatus() {
             try {
-                const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
+                const names = ['玩家', 'AI Grok', 'AI GhatGPT', 'AI DeepSeek'];
                 if (hands.some(hand => hand && hand.length === 0) && !gameEnded) {
                     gameEnded = true;
                     const winner = hands.findIndex(hand => hand && hand.length === 0);
@@ -967,7 +968,7 @@
             try {
                 const hand = hands[currentPlayer];
                 if (!hand) return;
-                const names = ['玩家', 'AI 1', 'AI 2', 'AI 3'];
+                const names = ['玩家', 'AI Grok', 'AI GhatGPT', 'AI DeepSeek'];
                 if (isFirstRound && !hand.some(card => card.rank === '3' && card.suit === '♣')) {
                     try {
                         passSound.play().catch(e => console.warn('無法播放 pass.mp3:', e));
@@ -994,7 +995,7 @@
                         if (combo.type !== 'single') {
                             playComboSound(combo.type);
                         }
-                        animateCards(combo.cards, `ai${currentPlayer}`, combo.type);
+                        animateCards(combo.cards, `ai${names[currentPlayer].replace(/\s/g, '')}`, combo.type);
                         moveHistory.push(`${names[currentPlayer]}出: ${combo.type} (${combo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                         tableCards = combo.cards;
                         lastPlayed = combo;
@@ -1017,7 +1018,7 @@
                     if (validCombo.type !== 'single') {
                         playComboSound(validCombo.type);
                     }
-                    animateCards(validCombo.cards, `ai${currentPlayer}`, validCombo.type);
+                    animateCards(validCombo.cards, `ai${names[currentPlayer].replace(/\s/g, '')}`, validCombo.type);
                     moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                     tableCards = validCombo.cards;
                     lastPlayed = validCombo;
@@ -1075,13 +1076,13 @@
                     if (source === 'player') {
                         startX = 0;
                         startY = 200;
-                    } else if (source === 'ai1') {
+                    } else if (source === 'aiAIGrok') {
                         startX = 0;
                         startY = -200;
-                    } else if (source === 'ai2') {
+                    } else if (source === 'aiAIGhatGPT') {
                         startX = -300;
                         startY = 0;
-                    } else if (source === 'ai3') {
+                    } else if (source === 'aiAIDeepSeek') {
                         startX = 300;
                         startY = 0;
                     }
