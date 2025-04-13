@@ -339,50 +339,6 @@
             align-items: center;
         }
 
-        /* 模仿象棋遊戲的說明欄位樣式 */
-        .rules-box {
-            padding: 20px;
-            background: #fdf6e3;
-            border-radius: 15px;
-            width: 100%;
-            max-width: 780px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-            border: 2px solid #d4a576;
-            margin-top: 20px;
-        }
-
-        .rules-box h2 {
-            font-size: 1.6em;
-            margin-bottom: 15px;
-            color: #4a2c00;
-            text-align: center;
-        }
-
-        .rules-box p {
-            font-size: 1em;
-            line-height: 1.8;
-            color: #6b4e31;
-            margin: 5px 0;
-        }
-
-        /* 模仿象棋遊戲的版權欄位樣式 */
-        .footer {
-            margin-top: 20px;
-            padding: 15px;
-            text-align: center;
-            background: #fdf6e3;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 780px;
-        }
-
-        .footer p {
-            font-size: 0.9em;
-            color: #6b4e31;
-            margin: 0;
-        }
-
         @media (max-width: 768px) {
             .game-section {
                 flex-direction: column;
@@ -392,12 +348,6 @@
                 width: 100%;
                 height: 100px;
                 margin: 15px 0;
-            }
-            .rules-box p {
-                font-size: 0.9em;
-            }
-            .footer p {
-                font-size: 0.8em;
             }
         }
     </style>
@@ -472,9 +422,8 @@
                      data-ad-format="auto"></ins>
                 <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
             </div>
-        </div>
-        <!-- 新增說明欄位 -->
-        <div class="rules-box">
+            <!-- 新增說明欄位 -->
+            <div class="rules-box">
     <h2>大老二玩法說明</h2>
     <p><strong>發牌：</strong></p>
     <p>將鬼牌之外的所有牌平均發放給所有玩家。（兩人玩時，有些人會發三份，其中一份留著不玩）。</p>
@@ -490,11 +439,14 @@
     <p><strong>過牌與輪次：</strong></p>
     <p>沒有牌值更高的牌時，該玩家說「過」或「pass」，之後在該輪不可再出牌。仍有牌可以出時，也可以因戰術考量選擇「過」。</p>
     <p>若所有其他玩家都不出牌，該輪結束，由最後出牌的玩家開始下一輪出牌。</p>
-    </div>
-        <!-- 新增版權欄位 -->
+</div>
+            <!-- 新增版權欄位 -->
         <footer class="footer">
             <p>© 2025 78PlayGame.com。保留所有權利。</p>
         </footer>
+    </div>
+
+        </div>
     </div>
 
     <!-- 原始腳本保持不變 -->
@@ -983,7 +935,7 @@
                     if (validCombo.type !== 'single') {
                         playComboSound(validCombo.type);
                     }
-                    animateCards(validCombo.cards, `ai${currentPlayer}`, combo.type);
+                    animateCards(validCombo.cards, `ai${currentPlayer}`, validCombo.type);
                     moveHistory.push(`${names[currentPlayer]}出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                     tableCards = validCombo.cards;
                     lastPlayed = validCombo;
@@ -1401,5 +1353,5 @@
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
     <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'92f644ba0a959c36',t:'MTc0NDQ5ODA3Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'92f9b547b9694593',t:'MTc0NDUzNDE0NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
