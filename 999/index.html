@@ -539,13 +539,24 @@
                 console.warn('音效初始化錯誤:', e);
             }
             deck = [];
+            // 修正牌組生成邏輯，確保不重複
             for (let suit of suits) {
                 for (let rank of ranks) {
                     deck.push({ suit, rank });
                 }
             }
             console.log('生成牌組:', deck.length, '張牌');
-            deck.sort(() => Math.random() - 0.5);
+            // 檢查牌組是否有重複
+            const deckSet = new Set(deck.map(card => `${card.suit}${card.rank}`));
+            if (deckSet.size !== deck.length) {
+                console.error('牌組中發現重複牌:', deck);
+                return;
+            }
+            // 洗牌（Fisher-Yates 演算法）
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
             hands = [[], [], [], []];
             for (let i = 0; i < 52; i++) {
                 hands[i % 4].push(deck[i]);
@@ -553,6 +564,13 @@
             hands.forEach(hand => {
                 hand.sort(compareCards);
                 console.log(`手牌 ${hand.length} 張:`, hand);
+            });
+            // 檢查手牌是否有重複
+            hands.forEach((hand, index) => {
+                const handSet = new Set(hand.map(card => `${card.suit}${card.rank}`));
+                if (handSet.size !== hand.length) {
+                    console.error(`玩家 ${index} 的手牌中發現重複牌:`, hand);
+                }
             });
             currentPlayer = hands.findIndex(hand => hand.some(card => card.rank === '3' && card.suit === '♣'));
             if (currentPlayer === -1) {
@@ -575,7 +593,7 @@
             if (currentPlayer !== 0) {
                 setTimeout(aiPlay, 2500);
             } else if (isAutoPlay) {
-                setTimeout(autoPlay, 2500);
+                setTimeout(autoPlay, 2000); // 調整為 2 秒
             }
         }
 
@@ -702,16 +720,106 @@
                     timer--;
                     document.getElementById('timer').textContent = `計時器: ${timer}秒`;
                     if (timer <= 0) {
-                        console.log('計時器到達 0，自動過牌');
+                        console.log('計時器到達 0，電腦自動出牌');
                         clearInterval(timerInterval);
                         timer = 0;
-                        pass();
+                        // 當計時器到達 0 時，執行自動出牌邏輯
+                        if (currentPlayer === 0 && !isAutoPlay) {
+                            autoPlayForTimer();
+                        }
                     }
                 }, 1000);
                 console.log('計時器啟動，初始值:', timer);
             } catch (e) {
                 console.error('計時器錯誤:', e);
                 showNotification('計時器初始化失敗！', 'lose');
+            }
+        }
+
+        // 新增計時器到時自動出牌的函數
+        function autoPlayForTimer() {
+            try {
+                if (currentPlayer !== 0) return;
+                console.log('計時器觸發自動出牌');
+                const hand = hands[0];
+                if (!hand) return;
+
+                if (isFirstRound) {
+                    let validCombos = getAllCombinations(hand).filter(combo => 
+                        combo.cards.some(card => card.rank === '3' && card.suit === '♣')
+                    );
+                    if (validCombos.length > 0) {
+                        const combo = validCombos[0];
+                        if (combo.type !== 'single') {
+                            playComboSound(combo.type);
+                        }
+                        animateCards(combo.cards, 'player', combo.type);
+                        moveHistory.push(`玩家 (計時器自動出牌) 出: ${combo.type} (${combo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                        tableCards = combo.cards;
+                        lastPlayed = combo;
+                        hands[0] = hand.filter(card => !combo.cards.includes(card));
+                        passes = 0;
+                        isFirstRound = false;
+                        setTimeout(nextPlayer, 2000); // 調整為 2 秒
+                        return;
+                    } else {
+                        console.log('第一輪未找到包含梅花三的牌型，自動過牌');
+                        try {
+                            passSound.play().catch(e => console.warn('無法播放 pass.mp3:', e));
+                        } catch (e) {
+                            console.warn('過牌音效錯誤:', e);
+                        }
+                        moveHistory.push('玩家 (計時器自動出牌): 過牌');
+                        passes++;
+                        if (passes >= 3) {
+                            tableCards = [];
+                            lastPlayed = null;
+                            passes = 0;
+                            isFirstRound = false;
+                        }
+                        setTimeout(nextPlayer, 2000); // 調整為 2 秒
+                        return;
+                    }
+                }
+
+                const combos = getAllCombinations(hand);
+                let validCombo = null;
+                for (let combo of combos) {
+                    if (!lastPlayed || canBeat(combo, lastPlayed)) {
+                        validCombo = combo;
+                        break;
+                    }
+                }
+
+                if (validCombo) {
+                    if (validCombo.type !== 'single') {
+                        playComboSound(validCombo.type);
+                    }
+                    animateCards(validCombo.cards, 'player', validCombo.type);
+                    moveHistory.push(`玩家 (計時器自動出牌) 出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
+                    tableCards = validCombo.cards;
+                    lastPlayed = validCombo;
+                    hands[0] = hand.filter(card => !combo.cards.includes(card));
+                    passes = 0;
+                } else {
+                    console.log('找不到可出的牌型，自動過牌');
+                    try {
+                        passSound.play().catch(e => console.warn('無法播放 pass.mp3:', e));
+                    } catch (e) {
+                        console.warn('過牌音效錯誤:', e);
+                    }
+                    moveHistory.push('玩家 (計時器自動出牌): 過牌');
+                    passes++;
+                    if (passes >= 3) {
+                        tableCards = [];
+                        lastPlayed = null;
+                        passes = 0;
+                        isFirstRound = false;
+                    }
+                }
+                setTimeout(nextPlayer, 2000); // 調整為 2 秒
+            } catch (e) {
+                console.error('計時器自動出牌錯誤:', e);
             }
         }
 
@@ -856,10 +964,15 @@
                         hands[0] = hand.filter(card => !combo.cards.includes(card));
                         passes = 0;
                         isFirstRound = false;
-                        nextPlayer();
+                        setTimeout(nextPlayer, 2000); // 調整為 2 秒
                         return;
                     } else {
                         console.log('第一輪未找到包含梅花三的牌型，自動過牌');
+                        try {
+                            passSound.play().catch(e => console.warn('無法播放 pass.mp3:', e));
+                        } catch (e) {
+                            console.warn('過牌音效錯誤:', e);
+                        }
                         moveHistory.push('玩家 (電腦代玩): 過牌');
                         passes++;
                         if (passes >= 3) {
@@ -868,7 +981,7 @@
                             passes = 0;
                             isFirstRound = false;
                         }
-                        nextPlayer();
+                        setTimeout(nextPlayer, 2000); // 調整為 2 秒
                         return;
                     }
                 }
@@ -908,7 +1021,7 @@
                         isFirstRound = false;
                     }
                 }
-                nextPlayer();
+                setTimeout(nextPlayer, 2000); // 調整為 2 秒
             } catch (e) {
                 console.error('自動出牌錯誤:', e);
             }
@@ -924,7 +1037,7 @@
                         if (timerInterval) {
                             clearInterval(timerInterval);
                         }
-                        setTimeout(autoPlay, 2500);
+                        setTimeout(autoPlay, 2000); // 調整為 2 秒
                     }
                 } else {
                     document.getElementById('status').textContent = '輪到 玩家';
@@ -957,7 +1070,7 @@
                 if (currentPlayer !== 0) {
                     setTimeout(aiPlay, 2500);
                 } else if (isAutoPlay) {
-                    setTimeout(autoPlay, 2500);
+                    setTimeout(autoPlay, 2000); // 調整為 2 秒
                 }
             } catch (e) {
                 console.error('下一玩家錯誤:', e);
