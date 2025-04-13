@@ -171,7 +171,7 @@
         #history {
             width: 90%;
             max-width: min(90vw, 600px);
-            height: min(20vw, 80px);
+            height: min(30vw, 120px);
             overflow-y: auto;
             background-color: #fff;
             border: 1px solid #ccc;
@@ -179,6 +179,7 @@
             font-size: min(3vw, 16px);
             border-radius: min(1vw, 5px);
             margin: min(2vw, 10px) auto;
+            box-sizing: border-box;
         }
         #controls {
             display: flex;
@@ -701,6 +702,8 @@
                     document.getElementById('timer').textContent = `計時器: ${timer}秒`;
                     if (timer <= 0) {
                         console.log('計時器到達 0，自動過牌');
+                        clearInterval(timerInterval);
+                        timer = 0;
                         pass();
                     }
                 }, 1000);
@@ -714,6 +717,11 @@
         function updateHistory() {
             try {
                 const historyDiv = document.getElementById('history');
+                if (!historyDiv) {
+                    console.error('找不到 #history 元素');
+                    return;
+                }
+                console.log('更新紀錄框，當前紀錄:', moveHistory);
                 historyDiv.innerHTML = moveHistory.map((move, i) => `${i + 1}. ${move}`).join('<br>');
                 historyDiv.scrollTop = historyDiv.scrollHeight;
             } catch (e) {
@@ -830,6 +838,7 @@
                 console.log('執行自動出牌，模式: 自動');
                 const hand = hands[0];
                 if (!hand) return;
+
                 if (isFirstRound) {
                     let validCombos = getAllCombinations(hand).filter(combo => 
                         combo.cards.some(card => card.rank === '3' && card.suit === '♣')
@@ -848,8 +857,21 @@
                         isFirstRound = false;
                         nextPlayer();
                         return;
+                    } else {
+                        console.log('第一輪未找到包含梅花三的牌型，自動過牌');
+                        moveHistory.push('玩家 (電腦代玩): 過牌');
+                        passes++;
+                        if (passes >= 3) {
+                            tableCards = [];
+                            lastPlayed = null;
+                            passes = 0;
+                            isFirstRound = false;
+                        }
+                        nextPlayer();
+                        return;
                     }
                 }
+
                 const combos = getAllCombinations(hand);
                 let validCombo = null;
                 for (let combo of combos) {
@@ -858,6 +880,7 @@
                         break;
                     }
                 }
+
                 if (validCombo) {
                     if (validCombo.type !== 'single') {
                         playComboSound(validCombo.type);
@@ -869,10 +892,7 @@
                     hands[0] = hand.filter(card => !combo.cards.includes(card));
                     passes = 0;
                 } else {
-                    if (isFirstRound && hand.some(card => card.rank === '3' && card.suit === '♣')) {
-                        showNotification('持有梅花三必須出牌！', 'lose');
-                        return;
-                    }
+                    console.log('找不到可出的牌型，自動過牌');
                     try {
                         passSound.play().catch(e => console.warn('無法播放 pass.mp3:', e));
                     } catch (e) {
@@ -897,11 +917,21 @@
             try {
                 isAutoPlay = !isAutoPlay;
                 console.log('切換模式，isAutoPlay:', isAutoPlay);
-                document.getElementById('status').textContent = isAutoPlay ? '輪到 玩家 (電腦代玩)' : '輪到 玩家';
-                if (isAutoPlay && currentPlayer === 0) {
-                    setTimeout(autoPlay, 2500);
+                if (isAutoPlay) {
+                    document.getElementById('status').textContent = '輪到 玩家 (電腦代玩)';
+                    if (currentPlayer === 0) {
+                        if (timerInterval) {
+                            clearInterval(timerInterval);
+                        }
+                        setTimeout(autoPlay, 2500);
+                    }
                 } else {
-                    startTimer(); // 切回手動模式時重啟計時器
+                    document.getElementById('status').textContent = '輪到 玩家';
+                    if (currentPlayer === 0) {
+                        startTimer();
+                    } else {
+                        console.log('等待AI行動完成後切回玩家回合');
+                    }
                 }
             } catch (e) {
                 console.error('切換自動模式錯誤:', e);
@@ -911,12 +941,16 @@
         function nextPlayer() {
             try {
                 currentPlayer = (currentPlayer + 1) % 4;
-                console.log('切換到玩家:', currentPlayer);
+                console.log('切換到玩家:', currentPlayer, '目前紀錄:', moveHistory);
                 updateUI();
                 updateStatus();
+                updateHistory();
                 if (hands[currentPlayer] && hands[currentPlayer].length === 0) {
                     calculateScores();
                     return;
+                }
+                if (timerInterval) {
+                    clearInterval(timerInterval);
                 }
                 startTimer();
                 if (currentPlayer !== 0) {
@@ -1140,23 +1174,23 @@
             try {
                 const typeOrder = { 'straightFlush': 5, 'fourOfAKind': 4, 'fullHouse': 3, 'straight': 2, 'pair': 1, 'single': 0 };
 
-                if (newCombo.type === 'pair') {
-                    if (oldCombo.type === 'pair') {
+                if (oldCombo.type === 'pair') {
+                    if (newCombo.type === 'pair') {
                         if (newCombo.value !== oldCombo.value) {
                             return newCombo.value > oldCombo.value;
                         }
                         return newCombo.suit > oldCombo.suit;
                     }
-                    if (oldCombo.type === 'fourOfAKind' || oldCombo.type === 'straightFlush') {
-                        return false;
+                    if (newCombo.type === 'fourOfAKind' || newCombo.type === 'straightFlush') {
+                        return true;
                     }
-                    showNotification('一對只能被一對、鐵支或同花順壓！', 'lose');
+                    showNotification('一對只能被更大的對子、鐵支或同花順壓！', 'lose');
                     return false;
                 }
 
                 if (newCombo.type === 'fullHouse') {
                     if (oldCombo.type === 'pair') {
-                        showNotification('葫蘆和一對不能互壓！', 'lose');
+                        showNotification('葫蘆不能壓一對！', 'lose');
                         return false;
                     }
                     if (oldCombo.type === 'fullHouse') {
