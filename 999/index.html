@@ -593,7 +593,7 @@
             if (currentPlayer !== 0) {
                 setTimeout(aiPlay, 2500);
             } else if (isAutoPlay) {
-                setTimeout(autoPlay, 2000); // 調整為 2 秒
+                setTimeout(autoPlay, 2000);
             }
         }
 
@@ -723,7 +723,6 @@
                         console.log('計時器到達 0，電腦自動出牌');
                         clearInterval(timerInterval);
                         timer = 0;
-                        // 當計時器到達 0 時，執行自動出牌邏輯
                         if (currentPlayer === 0 && !isAutoPlay) {
                             autoPlayForTimer();
                         }
@@ -736,7 +735,6 @@
             }
         }
 
-        // 新增計時器到時自動出牌的函數
         function autoPlayForTimer() {
             try {
                 if (currentPlayer !== 0) return;
@@ -750,6 +748,9 @@
                     );
                     if (validCombos.length > 0) {
                         const combo = validCombos[0];
+                        const indicesToRemove = combo.cards.map(card => hands[0].findIndex(c => c.suit === card.suit && c.rank === card.rank));
+                        console.log('計時器自動出牌（第一輪），移除的牌索引:', indicesToRemove);
+                        indicesToRemove.sort((a, b) => b - a).forEach(index => hands[0].splice(index, 1));
                         if (combo.type !== 'single') {
                             playComboSound(combo.type);
                         }
@@ -757,10 +758,9 @@
                         moveHistory.push(`玩家 (計時器自動出牌) 出: ${combo.type} (${combo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                         tableCards = combo.cards;
                         lastPlayed = combo;
-                        hands[0] = hand.filter(card => !combo.cards.includes(card));
                         passes = 0;
                         isFirstRound = false;
-                        setTimeout(nextPlayer, 2000); // 調整為 2 秒
+                        setTimeout(nextPlayer, 2000);
                         return;
                     } else {
                         console.log('第一輪未找到包含梅花三的牌型，自動過牌');
@@ -777,7 +777,7 @@
                             passes = 0;
                             isFirstRound = false;
                         }
-                        setTimeout(nextPlayer, 2000); // 調整為 2 秒
+                        setTimeout(nextPlayer, 2000);
                         return;
                     }
                 }
@@ -792,6 +792,9 @@
                 }
 
                 if (validCombo) {
+                    const indicesToRemove = validCombo.cards.map(card => hands[0].findIndex(c => c.suit === card.suit && c.rank === card.rank));
+                    console.log('計時器自動出牌，移除的牌索引:', indicesToRemove);
+                    indicesToRemove.sort((a, b) => b - a).forEach(index => hands[0].splice(index, 1));
                     if (validCombo.type !== 'single') {
                         playComboSound(validCombo.type);
                     }
@@ -799,7 +802,6 @@
                     moveHistory.push(`玩家 (計時器自動出牌) 出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                     tableCards = validCombo.cards;
                     lastPlayed = validCombo;
-                    hands[0] = hand.filter(card => !combo.cards.includes(card));
                     passes = 0;
                 } else {
                     console.log('找不到可出的牌型，自動過牌');
@@ -817,7 +819,7 @@
                         isFirstRound = false;
                     }
                 }
-                setTimeout(nextPlayer, 2000); // 調整為 2 秒
+                setTimeout(nextPlayer, 2000);
             } catch (e) {
                 console.error('計時器自動出牌錯誤:', e);
             }
@@ -895,8 +897,8 @@
                 animateCards(cards, 'player', combo.type);
                 moveHistory.push(`玩家出: ${combo.type} (${cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                 selectedCards.sort((a, b) => b - a);
+                console.log('移除玩家手牌，索引:', selectedCards);
                 for (let i of selectedCards) {
-                    console.log(`移除玩家手牌索引 ${i}:`, hands[0][i]);
                     hands[0].splice(i, 1);
                 }
                 console.log('出牌後玩家手牌:', hands[0]);
@@ -905,6 +907,7 @@
                 if (isFirstRound && cards.some(card => card.rank === '3' && card.suit === '♣')) {
                     isFirstRound = false;
                 }
+                updateUI(); // 立即更新 UI
                 nextPlayer();
             } catch (e) {
                 console.error('出牌錯誤:', e);
@@ -954,6 +957,9 @@
                     );
                     if (validCombos.length > 0) {
                         const combo = validCombos[0];
+                        const indicesToRemove = combo.cards.map(card => hands[0].findIndex(c => c.suit === card.suit && c.rank === card.rank));
+                        console.log('自動出牌（第一輪），移除的牌索引:', indicesToRemove);
+                        indicesToRemove.sort((a, b) => b - a).forEach(index => hands[0].splice(index, 1));
                         if (combo.type !== 'single') {
                             playComboSound(combo.type);
                         }
@@ -961,10 +967,9 @@
                         moveHistory.push(`玩家 (電腦代玩) 出: ${combo.type} (${combo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                         tableCards = combo.cards;
                         lastPlayed = combo;
-                        hands[0] = hand.filter(card => !combo.cards.includes(card));
                         passes = 0;
                         isFirstRound = false;
-                        setTimeout(nextPlayer, 2000); // 調整為 2 秒
+                        setTimeout(nextPlayer, 2000);
                         return;
                     } else {
                         console.log('第一輪未找到包含梅花三的牌型，自動過牌');
@@ -981,7 +986,7 @@
                             passes = 0;
                             isFirstRound = false;
                         }
-                        setTimeout(nextPlayer, 2000); // 調整為 2 秒
+                        setTimeout(nextPlayer, 2000);
                         return;
                     }
                 }
@@ -996,6 +1001,9 @@
                 }
 
                 if (validCombo) {
+                    const indicesToRemove = validCombo.cards.map(card => hands[0].findIndex(c => c.suit === card.suit && c.rank === card.rank));
+                    console.log('自動出牌，移除的牌索引:', indicesToRemove);
+                    indicesToRemove.sort((a, b) => b - a).forEach(index => hands[0].splice(index, 1));
                     if (validCombo.type !== 'single') {
                         playComboSound(validCombo.type);
                     }
@@ -1003,7 +1011,6 @@
                     moveHistory.push(`玩家 (電腦代玩) 出: ${validCombo.type} (${validCombo.cards.map(c => `${c.suit}${c.rank}`).join(', ')})`);
                     tableCards = validCombo.cards;
                     lastPlayed = validCombo;
-                    hands[0] = hand.filter(card => !combo.cards.includes(card));
                     passes = 0;
                 } else {
                     console.log('找不到可出的牌型，自動過牌');
@@ -1021,7 +1028,7 @@
                         isFirstRound = false;
                     }
                 }
-                setTimeout(nextPlayer, 2000); // 調整為 2 秒
+                setTimeout(nextPlayer, 2000);
             } catch (e) {
                 console.error('自動出牌錯誤:', e);
             }
@@ -1037,7 +1044,7 @@
                         if (timerInterval) {
                             clearInterval(timerInterval);
                         }
-                        setTimeout(autoPlay, 2000); // 調整為 2 秒
+                        setTimeout(autoPlay, 2000);
                     }
                 } else {
                     document.getElementById('status').textContent = '輪到 玩家';
@@ -1070,7 +1077,7 @@
                 if (currentPlayer !== 0) {
                     setTimeout(aiPlay, 2500);
                 } else if (isAutoPlay) {
-                    setTimeout(autoPlay, 2000); // 調整為 2 秒
+                    setTimeout(autoPlay, 2000);
                 }
             } catch (e) {
                 console.error('下一玩家錯誤:', e);
