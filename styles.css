@@ -7,7 +7,21 @@ body {
     min-height: 100vh;
     margin: 0;
 }
+.share-buttons {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0;
+    justify-content: center;
+}
 
+.share-button img {
+    vertical-align: middle;
+    transition: transform 0.2s;
+}
+
+.share-button img:hover {
+    transform: scale(1.1);
+}
 .container {
     background: #fffcf7; /* 溫暖象牙白，提升質感 */
     padding: 25px;
