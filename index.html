@@ -1,4 +1,43 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -18,41 +57,97 @@
     <meta name="twitter:image" content="https://xbon520.github.io/game/xiangqi/img/banner.jpg">
     <title>免費線上棋牌遊戲網 (78PlayGame) - 象棋 Xiangqi</title>
     <link rel="stylesheet" href="./styles.css">
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3440199491716602"
-     crossorigin="anonymous"></script>
-</head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-47M3ZT3RLB"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3440199491716602"
+         crossorigin="anonymous"></script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-47M3ZT3RLB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-47M3ZT3RLB');
+    </script>
+    <!-- Facebook SDK -->
+    <script>
+      window.fbAsyncInit = function() {
+        FB.init({
+          appId      : 'YOUR_APP_ID', // 替換為你的 Facebook App ID
+          xfbml      : true,
+          version    : 'v18.0'
+        });
+      };
+      (function(d, s, id){
+         var js, fjs = d.getElementsByTagName(s)[0];
+         if (d.getElementById(id)) {return;}
+         js = d.createElement(s); js.id = id;
+         js.src = "https://connect.facebook.net/zh_TW/sdk.js";
+         fjs.parentNode.insertBefore(js, fjs);
+       }(document, 'script', 'facebook-jssdk'));
+    </script>
+    <style>
+        .facebook-comments {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 70%; /* 與 game-content 一致 */
+            max-width: 800px; /* 與 game-content 一致 */
+            margin-left: auto;
+            margin-right: auto;
+        }
 
-  gtag('config', 'G-47M3ZT3RLB');
-</script>
+        /* 手機和平板調整 */
+        @media (max-width: 768px) {
+            .facebook-comments {
+                width: 90%; /* 手機上稍微窄一點，避免過於貼邊 */
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .facebook-comments {
+                width: 95%;
+                padding: 10px;
+            }
+        }
+
+        .facebook-comments h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #2563eb;
+        }
+
+        .facebook-comments p {
+            line-height: 1.6;
+            color: #666666;
+        }
+    </style>
+</head>
 <body>
-	<div class="container">
+    <div class="container">
         <header>
             <img src="./img/banner.jpg" alt="78PlayGame Banner" class="banner">
-			<div class="share-buttons">
-        <a href="https://www.facebook.com/sharer/sharer.php?u=https://78playgame.com/index.html" target="_blank" class="share-button facebook">
-            <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/10.0.0/facebook.svg" alt="Facebook Share" width="32" height="32">
-        </a>
-        <a href="https://x.com/intent/tweet?url=https://78playgame.com/index.html" target="_blank" class="share-button x">
-            <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/10.0.0/x.svg" alt="X Share" width="32" height="32">
-        </a>
-        <a href="https://www.instagram.com/?url=https://78playgame.com/index.html" target="_blank" class="share-button instagram">
-            <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/10.0.0/instagram.svg" alt="Instagram Share" width="32" height="32">
-        </a>
-        <a href="https://line.me/R/msg/text/?免費線上棋牌遊戲網！%0D%0Ahttps://78playgame.com/index.html" target="_blank" class="share-button line">
-            <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/10.0.0/line.svg" alt="Line Share" width="32" height="32">
-        </a>
-    </div>
-            <h1>免費線上棋牌遊戲網 (78PlayGame)</h1>	
+            <div class="share-buttons">
+                <a href="https://www.facebook.com/sharer/sharer.php?u=https://78playgame.com/index.html" target="_blank" class="share-button facebook">
+                    <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/10.0.0/facebook.svg" alt="Facebook Share" width="32" height="32">
+                </a>
+                <a href="https://x.com/intent/tweet?url=https://78playgame.com/index.html" target="_blank" class="share-button x">
+                    <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/10.0.0/x.svg" alt="X Share" width="32" height="32">
+                </a>
+                <a href="https://www.instagram.com/?url=https://78playgame.com/index.html" target="_blank" class="share-button instagram">
+                    <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/10.0.0/instagram.svg" alt="Instagram Share" width="32" height="32">
+                </a>
+                <a href="https://line.me/R/msg/text/?免費線上棋牌遊戲網！%0D%0Ahttps://78playgame.com/index.html" target="_blank" class="share-button line">
+                    <img src="https://cdnjs.cloudflare.com/ajax/libs/simple-icons/10.0.0/line.svg" alt="Line Share" width="32" height="32">
+                </a>
+            </div>
+            <h1>免費線上棋牌遊戲網 (78PlayGame)</h1>    
             <nav class="menu">
                 <a href="./index.html" class="menu-btn active">象棋 Xiangqi</a>
                 <a href="./999/index.html" class="menu-btn">大老二 Big Two Deues</a>
-               <!--  
+                <!--  
                 <a href="./Dark_Pool_Chess/index.html" class="menu-btn">暗棋(象棋) Dark Pool Chess</a>
                 <a href="./Chess/index.html" class="menu-btn">西洋棋 Chess</a>
                 <a href="./Go/index.html" class="menu-btn">圍棋 Go</a>
@@ -113,7 +208,7 @@
                 <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
             </div>
         </div>
-        <div class="rules-box"
+        <div class="rules-box">
             <h2>中國象棋玩法說明</h2>
             <p><strong>棋盤</strong></p>
             <p>大小：9 列（橫線）× 10 行（豎線），共 90 個交叉點。</p>
@@ -160,6 +255,10 @@
             <p>過河後（紅方 > 4 行，黑方 < 5 行）：可向前、左、右走 1 格。</p>
             <p>限制：不能後退。</p>
         </div>
+        <div class="facebook-comments">
+            <h2>留言板</h2>
+            <div class="fb-comments" data-href="https://xbon520.github.io/game/xiangqi/" data-width="100%" data-numposts="5"></div>
+        </div>
         <footer class="footer">
             <p>© 2025 78PlayGame.com。保留所有權利。</p>
         </footer>
@@ -167,5 +266,6 @@
     </div>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
     <script src="./script.js"></script>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'935480f41a4b7bbd',t:'MTc0NTQ4NjIwNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>
